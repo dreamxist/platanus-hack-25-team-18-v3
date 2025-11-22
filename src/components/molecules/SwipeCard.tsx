@@ -23,7 +23,7 @@ export const SwipeCard = ({ idea, className, swipeDirection }: SwipeCardProps) =
     >
       {/* Swipe indicators with spring animations */}
       <motion.div
-        className="absolute -left-24 top-1/2 -translate-y-1/2"
+        className="pointer-events-none absolute left-4 md:-left-24 top-1/2 -translate-y-1/2"
         animate={{
           opacity: swipeDirection === "left" ? 1 : 0,
           scale: swipeDirection === "left" ? 1.1 : 0.75,
@@ -31,20 +31,20 @@ export const SwipeCard = ({ idea, className, swipeDirection }: SwipeCardProps) =
         }}
         transition={spring.bouncy}
       >
-        <div className="w-20 h-20 rounded-full bg-destructive/20 backdrop-blur-xl border-2 border-destructive flex items-center justify-center">
+        <div className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full bg-destructive/20 backdrop-blur-xl border-2 border-destructive flex items-center justify-center">
           <motion.div
             animate={{
               rotate: swipeDirection === "left" ? [0, -15, 0] : 0,
             }}
             transition={{ duration: 0.5 }}
           >
-            <X className="w-10 h-10 text-destructive" strokeWidth={3} />
+            <X className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 text-destructive" strokeWidth={3} />
           </motion.div>
         </div>
       </motion.div>
 
       <motion.div
-        className="absolute -right-24 top-1/2 -translate-y-1/2"
+        className="pointer-events-none absolute right-4 md:-right-24 top-1/2 -translate-y-1/2"
         animate={{
           opacity: swipeDirection === "right" ? 1 : 0,
           scale: swipeDirection === "right" ? 1.1 : 0.75,
@@ -52,14 +52,14 @@ export const SwipeCard = ({ idea, className, swipeDirection }: SwipeCardProps) =
         }}
         transition={spring.bouncy}
       >
-        <div className="w-20 h-20 rounded-full bg-success/20 backdrop-blur-xl border-2 border-success flex items-center justify-center">
+        <div className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full bg-success/20 backdrop-blur-xl border-2 border-success flex items-center justify-center">
           <motion.div
             animate={{
               scale: swipeDirection === "right" ? [1, 1.2, 1] : 1,
             }}
             transition={{ duration: 0.3 }}
           >
-            <Heart className="w-10 h-10 text-success" strokeWidth={3} fill="currentColor" />
+            <Heart className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 text-success" strokeWidth={3} fill="currentColor" />
           </motion.div>
         </div>
       </motion.div>
