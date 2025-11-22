@@ -1,9 +1,9 @@
+// eslint-disable-next-line @typescript-eslint/triple-slash-reference
 /// <reference path="./deno.d.ts" />
-// @ts-ignore - Deno imports from URLs
+// @ts-expect-error - Deno imports from URLs
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-// @ts-ignore - Deno imports from URLs
+// @ts-expect-error - Deno imports from URLs
 import { OpenAI } from 'https://esm.sh/openai@4.47.1';
-// @ts-ignore - Deno imports from URLs
 import Anthropic from 'https://esm.sh/@anthropic-ai/sdk@0.27.0';
 
 // --- 1. Inicialización de Clientes ---
@@ -35,9 +35,10 @@ async function generateEmbedding(text: string): Promise<number[]> {
       input: [text]
     });
     return response.data[0].embedding;
-  } catch (error: any) {
-    console.error('Error al llamar OpenAI:', error.message);
-    throw new Error(`Fallo en la generación de embedding: ${error.message}`);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+    console.error('Error al llamar OpenAI:', errorMessage);
+    throw new Error(`Fallo en la generación de embedding: ${errorMessage}`);
   }
 }
 
@@ -120,10 +121,12 @@ Deno.serve(async (req) => {
     if (hist?.length) {
       candidate_id = hist[0].candidate_id;
 
+      const embeddingString = `[${promptEmbedding.join(',')}]`;
+
       const { data: docs, error: ragErr } = await supabase.rpc(
         'match_documents_by_candidate',
         {
-          query_embedding: promptEmbedding,
+          query_embedding: embeddingString,
           candidate_filter_id: candidate_id,
           match_count: 5
         }
@@ -208,11 +211,12 @@ ${context}
         },
       }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
     console.error('Error en la Edge Function:', error);
     return new Response(
       JSON.stringify({
-        error: error.message
+        error: errorMessage
       }),
       {
         status: 500,
