@@ -53,7 +53,7 @@ const LandingPage = () => {
 
       {/* Contenido */}
       <motion.div
-        className="relative z-10 text-center px-6 max-w-3xl mx-auto"
+        className="mb-60 relative z-10 text-center px-6 max-w-3xl mx-auto"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -63,13 +63,13 @@ const LandingPage = () => {
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-4"
           variants={fadeInUp}
         >
-          <Sparkles className="w-4 h-4 text-primary" />
+          <Sparkles className="w-4 text-primary" />
           <span className="text-sm font-medium text-primary">Elecciones 2025</span>
         </motion.div>
 
         {/* Título principal */}
         <motion.h1
-          className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-br from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent"
+          className="text-5xl md:text-7xl font-bold mb-6 mt-6 bg-gradient-to-br from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent"
           variants={fadeInUp}
         >
           Descubre tu candidato ideal
