@@ -53,7 +53,7 @@ const LandingPage = () => {
 
       {/* Contenido */}
       <motion.div
-        className="mb-60 relative z-10 text-center px-6 max-w-3xl mx-auto"
+        className="mb-60 relative z-10 text-center px-6 max-w-3xl mx-auto mt-4"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
