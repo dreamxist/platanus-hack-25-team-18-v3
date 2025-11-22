@@ -109,26 +109,6 @@ export const SwipeCard = ({ idea, className, swipeDirection }: SwipeCardProps) =
         >
           {idea.text}
         </motion.p>
-
-        {/* Swipe hint */}
-        <motion.div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring.smooth, delay: 0.5 }}
-        >
-          <div className="flex items-center gap-4 text-muted-foreground/60">
-            <div className="flex items-center gap-2">
-              <X className="w-5 h-5" />
-              <span className="text-sm font-medium">Desliza</span>
-            </div>
-            <div className="w-12 h-1 rounded-full bg-muted-foreground/20" />
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Desliza</span>
-              <Heart className="w-5 h-5" />
-            </div>
-          </div>
-        </motion.div>
       </motion.div>
     </div>
   );
