@@ -167,7 +167,6 @@ export const useSwipeStore = create<SwipeState>((set, get) => ({
   answerIdea: async (userId: string, answer: 'agree' | 'disagree') => {
     const { ideas, currentIdeaIndex, answers } = get();
     const currentIdea = ideas[currentIdeaIndex];
-    console.log('debug', 'userId', userId, 'currentIdea', currentIdea, 'ideas');
 
     if (!currentIdea || !userId) return;
 
