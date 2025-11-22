@@ -86,8 +86,14 @@ const MatchPage = () => {
     return () => clearTimeout(timer);
   }, [fetchTopics]);
 
+  // Redirect to home if no top candidate - use useEffect to avoid rendering issues
+  useEffect(() => {
+    if (!topCandidate) {
+      navigate(`/?userId=${userId}`);
+    }
+  }, [topCandidate, navigate, userId]);
+
   if (!topCandidate) {
-    navigate(`/?userId=${userId}`);
     return null;
   }
 
