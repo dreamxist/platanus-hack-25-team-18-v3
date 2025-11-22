@@ -5,7 +5,7 @@
     "dev:web": "cd web && npm run dev",
     "dev:functions": "supabase functions serve --env-file ./supabase/.env.functions",
     "dev:all": "concurrently \"npm run dev:web\" \"npm run dev:functions\"",
-    "deploy:functions": "supabase functions deploy --project-ref <your-project-ref>"
+    "deploy:functions": "supabase functions deploy"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
