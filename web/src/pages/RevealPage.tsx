@@ -49,41 +49,91 @@ const RevealPage = () => {
 
   const candidateImage = getCandidateImage(topCandidate.name);
 
+  // Helper function to convert image URL to base64 using fetch (more reliable on mobile)
+  const getImageAsBase64 = async (url: string): Promise<string> => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error(`Error loading image ${url}:`, error);
+      throw error;
+    }
+  };
+
   const handleShare = async () => {
     setIsSharing(true);
-    // Wait for render
-    setTimeout(async () => {
+    
+    try {
+      toast.info("Preparando imagen...", { duration: 2000 });
+      
+      // Pre-load images as base64
+      console.log('Loading candidate image:', candidateImage);
+      const candidateImageBase64 = await getImageAsBase64(candidateImage);
+      console.log('Candidate image loaded');
+      
+      console.log('Loading chile image');
+      const chileImageBase64 = await getImageAsBase64('/screen/chile.png');
+      console.log('Chile image loaded');
+      
+      // Update the images in the share ref
       if (shareRef.current) {
-        try {
-          toast.info("Generando imagen...", { duration: 1000 });
-          
-          const dataUrl = await toPng(shareRef.current, {
-            cacheBust: true,
-            pixelRatio: 2, // Higher quality
-            backgroundColor: '#ffffff', // Ensure no transparency
-            style: {
-              opacity: '1',
-              visibility: 'visible',
-              zIndex: '9999', // Ensure it's on top in the capture
-            }
-          });
-          
-          const link = document.createElement('a');
-          link.download = `match-${topCandidate.name.replace(/\s+/g, '-').toLowerCase()}.png`;
-          link.href = dataUrl;
-          link.click();
-          
-          toast.success("¡Imagen descargada!", {
-            description: "Lista para compartir en tus redes",
-          });
-        } catch (err) {
-          console.error(err);
-          toast.error("Error al generar la imagen");
-        } finally {
-          setIsSharing(false);
-        }
+        const candidateImgElement = shareRef.current.querySelector('.candidate-share-image') as HTMLImageElement;
+        const chileImgElement = shareRef.current.querySelector('.chile-share-image') as HTMLImageElement;
+        
+        console.log('Found elements:', { 
+          candidate: !!candidateImgElement, 
+          chile: !!chileImgElement 
+        });
+        
+        if (candidateImgElement) candidateImgElement.src = candidateImageBase64;
+        if (chileImgElement) chileImgElement.src = chileImageBase64;
       }
-    }, 100);
+      
+      // Wait for images to be updated in DOM and fully loaded
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      if (shareRef.current) {
+        toast.info("Generando imagen...", { duration: 2000 });
+        
+        console.log('Starting toPng conversion');
+        const dataUrl = await toPng(shareRef.current, {
+          cacheBust: true,
+          pixelRatio: 2, // Higher quality
+          backgroundColor: '#ffffff', // Ensure no transparency
+          skipFonts: true, // Skip font embedding for better compatibility
+          style: {
+            opacity: '1',
+            visibility: 'visible',
+            zIndex: '9999', // Ensure it's on top in the capture
+          }
+        });
+        
+        console.log('Image generated successfully');
+        
+        const link = document.createElement('a');
+        link.download = `match-${topCandidate.name.replace(/\s+/g, '-').toLowerCase()}.png`;
+        link.href = dataUrl;
+        link.click();
+        
+        toast.success("¡Imagen descargada!", {
+          description: "Lista para compartir en tus redes",
+        });
+      }
+    } catch (err) {
+      console.error('Share error:', err);
+      toast.error("Error al generar la imagen", {
+        description: err instanceof Error ? err.message : 'Error desconocido'
+      });
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   const handleClose = () => {
@@ -106,57 +156,64 @@ const RevealPage = () => {
       >
          {/* Background Elements for Share Image */}
         <div className="absolute inset-0 z-0">
-          <div
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-            style={{ backgroundImage: "url('/screen/chile.png')" }}
+          {/* Chile background image */}
+          <img 
+            src="/screen/chile.png"
+            alt=""
+            className="chile-share-image absolute inset-0 w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/60 to-background/90" />
-          <div
-            className="absolute inset-0 bg-center bg-no-repeat opacity-100"
-            style={{
-              backgroundImage: `url(${candidateImage})`,
-              backgroundSize: '100%'
-            }}
-          />
-          <div className="absolute bottom-0 left-0 right-0 h-[35%] bg-gradient-to-t from-background from-45% via-background to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-b from-background/85 via-background/70 to-background/90" />
         </div>
 
-        {/* Content for Share Image */}
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-end px-24 pb-48">
-           {/* Match percentage */}
-           <div className="mb-12">
-            <h2 className="text-[240px] font-bold text-foreground leading-none tracking-tighter">
-              {overallScore}%
-            </h2>
+        {/* Content for Share Image - Vertical layout */}
+        <div className="relative z-10 h-full flex flex-col pt-48">
+          {/* Top section - Candidate Image */}
+          <div className="h-[55%] flex items-center justify-center relative">
+            <img 
+              src={candidateImage}
+              alt={topCandidate.name}
+              className="candidate-share-image h-full w-auto object-contain"
+              style={{ maxHeight: '100%', maxWidth: '100%' }}
+            />
           </div>
 
-          {/* Name and party */}
-          <div className="text-center mb-16">
-            <h3 className="text-6xl font-bold mb-4 text-foreground">
-              {topCandidate.name}
-            </h3>
-            <p className="text-4xl text-muted-foreground">
-              {topCandidate.partyName}
-            </p>
-          </div>
+          {/* Bottom section - Content */}
+          <div className="h-[45%] flex flex-col items-center justify-center px-16 py-8">
+            {/* Match percentage */}
+            <div className="mb-8">
+              <h2 className="text-[200px] font-bold text-foreground leading-none tracking-tighter text-center">
+                {overallScore}%
+              </h2>
+            </div>
 
-          {/* Topic badges */}
-          <div className="flex flex-row flex-wrap justify-center gap-6">
-            {matchedTopics.map(([topic]) => (
-              <span
-                key={topic}
-                className="px-8 py-4 bg-amber-500 text-white text-3xl font-bold rounded-full whitespace-nowrap"
-              >
-                {topic}
-              </span>
-            ))}
-          </div>
-          
-          {/* Branding/Footer */}
-          <div className="absolute bottom-20 left-0 right-0 text-center">
-            <p className="text-3xl font-medium text-muted-foreground/60">
-              Descubre tu candidato en MiCandida.top
-            </p>
+            {/* Name and party */}
+            <div className="text-center mb-10">
+              <h3 className="text-6xl font-bold mb-3 text-foreground">
+                {topCandidate.name}
+              </h3>
+              <p className="text-4xl text-muted-foreground">
+                {topCandidate.partyName}
+              </p>
+            </div>
+
+            {/* Topic badges */}
+            <div className="flex flex-row flex-wrap justify-center gap-4 mb-10 max-w-[900px]">
+              {matchedTopics.slice(0, 3).map(([topic]) => (
+                <span
+                  key={topic}
+                  className="px-6 py-3 bg-amber-500 text-white text-2xl font-bold rounded-full whitespace-nowrap"
+                >
+                  {topic}
+                </span>
+              ))}
+            </div>
+            
+            {/* Branding/Footer */}
+            <div className="mt-auto">
+              <p className="text-3xl font-medium text-muted-foreground/70 text-center">
+                Descubre tu candidato en MiCandida.top
+              </p>
+            </div>
           </div>
         </div>
       </div>
