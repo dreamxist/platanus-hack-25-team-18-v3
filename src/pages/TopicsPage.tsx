@@ -81,6 +81,7 @@ const TopicsPage = () => {
       if (session?.user) {
         // Ya existe un usuario en sesión, usar ese
         userId = session.user.id;
+        console.log("Usuario en sesión:", userId);
       } else {
         // No hay sesión, crear usuario anónimo
         const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
@@ -90,6 +91,7 @@ const TopicsPage = () => {
         if (!authData.user?.id) throw new Error("No se pudo crear el usuario");
 
         userId = authData.user.id;
+        console.log("Usuario creado:", userId);
       }
 
       // Guardar temas seleccionados

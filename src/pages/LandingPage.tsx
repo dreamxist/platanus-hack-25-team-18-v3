@@ -36,7 +36,7 @@ const LandingPage = () => {
   };
 
   return (
-    <div className="h-[100dvh] w-screen flex items-center justify-center overflow-hidden fixed inset-0 bg-background">
+    <div className="relative flex min-h-[100dvh] w-full items-center justify-center overflow-hidden bg-background">
       {/* Fondo con imagen de chile */}
       <motion.div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
@@ -80,7 +80,7 @@ const LandingPage = () => {
           className="text-lg md:text-xl text-muted-foreground mb-12 leading-relaxed"
           variants={fadeInUp}
         >
-          Responde preguntas sobre los temas que te importan y encuentra el candidato que mejor se alinea con tus ideas
+          Hazle "swipe" a los temas que te importan y encuentra el candidato que mejor se alinea con tus ideas
         </motion.p>
 
         {/* CTA Button */}
