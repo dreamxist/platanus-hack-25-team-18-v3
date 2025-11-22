@@ -13,7 +13,7 @@ interface HeaderProps {
 export const Header = ({
   current,
   total,
-  title = "PresiMatch",
+  title = "micandidatop",
   subtitle,
   showProgress = false,
   className,
