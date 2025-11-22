@@ -2,6 +2,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAppContext } from "@/context/AppContext";
 import { getTopCandidate } from "@/data/mockData";
 import { ChatContainer } from "@/components/organisms/ChatContainer";
+import { supabase } from "@/integrations/supabase/client";
 
 const ChatPage = () => {
   const navigate = useNavigate();
@@ -15,6 +16,37 @@ const ChatPage = () => {
     navigate(`/?userId=${userId}`);
     return null;
   }
+
+  const handleReveal = async () => {
+    if (!userId || !topCandidate.id) return;
+
+    try {
+      // Crear o actualizar el registro en UserMatches con status 'revealed'
+      // Usamos upsert para crear si no existe o actualizar si ya existe
+      const { error } = await supabase
+        .from("UserMatches")
+        .upsert(
+          {
+            user_id: userId,
+            candidate_id: topCandidate.id,
+            status: "revealed",
+          },
+          {
+            onConflict: "user_id,candidate_id",
+          }
+        );
+
+      if (error) {
+        console.error("Error actualizando UserMatches:", error);
+        // Continuar con la navegación aunque haya error
+      }
+    } catch (error) {
+      console.error("Error al actualizar status:", error);
+      // Continuar con la navegación aunque haya error
+    }
+
+    navigate(`/reveal?userId=${userId}`);
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-white via-blue-50 to-red-50">
@@ -43,7 +75,7 @@ const ChatPage = () => {
           <ChatContainer
             candidateName={topCandidate.name}
             candidateId={topCandidate.id}
-            onReveal={() => navigate(`/reveal?userId=${userId}`)}
+            onReveal={handleReveal}
             onBack={() => navigate(`/swipe?userId=${userId}`)}
           />
         </div>

@@ -11,6 +11,7 @@ import {
   animate,
 } from "framer-motion";
 import { spring, swipeConfig } from "@/config/animations";
+import { Loader2 } from "lucide-react";
 
 const SwipePage = () => {
   console.log("SwipePage component mounted");
@@ -133,14 +134,6 @@ const SwipePage = () => {
     }
   }, [shouldShowMatch, markMatchShown, navigate, userId]);
 
-  useEffect(() => {
-    // Only redirect if we have initialized and we're not loading and there's no current idea
-    // This prevents redirecting before opinions are loaded
-    if (hasInitialized && !currentIdea && !isLoading) {
-      // All ideas answered, go to reveal
-      navigate(`/reveal?userId=${userId}`);
-    }
-  }, [hasInitialized, currentIdea, isLoading, navigate, userId]);
 
   // Update swipe direction indicator based on drag position
   useEffect(() => {
@@ -155,6 +148,13 @@ const SwipePage = () => {
     return () => unsubscribe();
   }, [x, isExiting]);
 
+  // Reset motion values when card changes
+  useEffect(() => {
+    if (currentIdea) {
+      x.set(0);
+    }
+  }, [currentIdea?.id, x]);
+
   console.log(
     "SwipePage render - isLoading:",
     isLoading,
@@ -168,7 +168,10 @@ const SwipePage = () => {
   if (isLoading) {
     return (
       <div className="h-screen w-full fixed inset-0 bg-gradient-to-br from-white via-blue-50 to-red-50 flex items-center justify-center">
-        <div className="text-foreground text-xl">Cargando opiniones...</div>
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 text-primary animate-spin" />
+          <div className="text-foreground text-xl">Cargando opiniones...</div>
+        </div>
       </div>
     );
   }
@@ -228,8 +231,19 @@ const SwipePage = () => {
 
   // Render conditions AFTER all hooks
   if (!currentIdea) {
-    console.log("SwipePage - No current idea, returning null");
-    return null;
+    console.log("SwipePage - No current idea, showing message");
+    return (
+      <div className="h-screen w-full fixed inset-0 bg-gradient-to-br from-white via-blue-50 to-red-50 flex items-center justify-center px-4">
+        <div className="text-foreground text-center">
+          <div className="text-xl mb-4">No hay más preguntas</div>
+          <div className="text-sm opacity-80">
+            {hasInitialized
+              ? "Has completado todas las preguntas disponibles."
+              : "Cargando preguntas..."}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
