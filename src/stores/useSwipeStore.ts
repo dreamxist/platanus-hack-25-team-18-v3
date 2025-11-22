@@ -4,7 +4,12 @@ import {
   fetchOpinions,
   saveAnswer,
   getUserAnswers,
-  OpinionWithDetails
+  OpinionWithDetails,
+  getNextQuestion,
+  submitAnswer as submitAnswerToEdgeFunction,
+  getMatches,
+  getOpinionFromQuestionId,
+  QuestionResponse
 } from '@/services/opinionsService';
 
 interface SwipeState {
@@ -27,9 +32,10 @@ interface SwipeState {
   setError: (error: string | null) => void;
 
   // Complex actions
-  loadOpinions: (topicIds?: number[]) => Promise<void>;
+  loadOpinions: (topicIds?: number[], userId?: string) => Promise<void>;
   answerIdea: (userId: string, answer: 'agree' | 'disagree') => Promise<void>;
   loadPreviousAnswers: (userId: string) => Promise<void>;
+  loadMatches: (userId: string) => Promise<any>;
   resetSwipe: () => void;
 
   // Computed
@@ -73,8 +79,8 @@ export const useSwipeStore = create<SwipeState>((set, get) => ({
     }
   },
 
-  // Load opinions
-  loadOpinions: async (topicIds?: number[]) => {
+  // Load opinions - now uses Edge Function to fetch questions
+  loadOpinions: async (topicIds?: number[], userId?: string) => {
     set({
       isLoading: true,
       error: null,
@@ -84,23 +90,94 @@ export const useSwipeStore = create<SwipeState>((set, get) => ({
     });
 
     try {
-      const opinionsData = await fetchOpinions(topicIds);
+      // If no userId provided, fall back to old method
+      if (!userId) {
+        const opinionsData = await fetchOpinions(topicIds);
 
-      // Transform OpinionWithDetails to Idea format
-      const transformedIdeas: Idea[] = opinionsData.map((opinion) => ({
-        id: opinion.id,
-        candidateId: opinion.candidate_id,
-        text: opinion.text,
-        topicId: opinion.topic_id,
-        topicName: opinion.topic.name,
-        emoji: opinion.topic.emoji,
-      }));
+        // Transform OpinionWithDetails to Idea format
+        const transformedIdeas: Idea[] = opinionsData.map((opinion) => ({
+          id: opinion.id,
+          candidateId: opinion.candidate_id,
+          text: opinion.text,
+          topicId: opinion.topic_id,
+          topicName: opinion.topic.name,
+          emoji: opinion.topic.emoji,
+        }));
 
-      set({ ideas: transformedIdeas });
+        set({ ideas: transformedIdeas });
 
-      // Extract unique candidates
+        // Extract unique candidates
+        const uniqueCandidates = new Map<number, Candidate>();
+        opinionsData.forEach((opinion) => {
+          if (!uniqueCandidates.has(opinion.candidate.id)) {
+            uniqueCandidates.set(opinion.candidate.id, {
+              id: opinion.candidate.id,
+              name: opinion.candidate.name,
+              partyName: opinion.candidate.political_party,
+              shortLabel: opinion.candidate.name,
+              avatarUrl: opinion.candidate.image,
+              color: 'hsl(270, 65%, 55%)',
+              age: opinion.candidate.age,
+            });
+          }
+        });
+
+        set({ candidates: Array.from(uniqueCandidates.values()) });
+        set({ isLoading: false });
+        return;
+      }
+
+      // Use Edge Function to fetch questions (pre-fetch 15 questions for smooth swiping)
+      const preFetchCount = 15;
+      const questions: Array<{ question: QuestionResponse; opinion: OpinionWithDetails | null }> = [];
+
+      for (let i = 0; i < preFetchCount; i++) {
+        const question = await getNextQuestion(userId);
+        if (!question) {
+          // No more questions available
+          break;
+        }
+
+        // Get opinion details to get candidate and topic info
+        const opinion = await getOpinionFromQuestionId(question.question_id);
+        questions.push({ question, opinion });
+      }
+
+      if (questions.length === 0) {
+        set({ error: 'No hay más preguntas disponibles para los temas seleccionados.' });
+        set({ isLoading: false });
+        return;
+      }
+
+      // Transform questions to Ideas
+      const transformedIdeas: Idea[] = [];
       const uniqueCandidates = new Map<number, Candidate>();
-      opinionsData.forEach((opinion) => {
+
+      for (const { question, opinion } of questions) {
+        if (!opinion) {
+          console.warn('Could not fetch opinion details for question:', question.question_id);
+          continue;
+        }
+
+        // Extract opinion_id from question_id (format: "q_123")
+        const opinionIdMatch = question.question_id.match(/^q_(\d+)$/);
+        if (!opinionIdMatch) {
+          console.warn('Invalid question_id format:', question.question_id);
+          continue;
+        }
+
+        const opinionId = parseInt(opinionIdMatch[1], 10);
+
+        transformedIdeas.push({
+          id: opinionId,
+          candidateId: opinion.candidate_id,
+          text: question.statement,
+          topicId: opinion.topic_id,
+          topicName: opinion.topic.name,
+          emoji: opinion.topic.emoji,
+        });
+
+        // Track unique candidates
         if (!uniqueCandidates.has(opinion.candidate.id)) {
           uniqueCandidates.set(opinion.candidate.id, {
             id: opinion.candidate.id,
@@ -112,8 +189,9 @@ export const useSwipeStore = create<SwipeState>((set, get) => ({
             age: opinion.candidate.age,
           });
         }
-      });
+      }
 
+      set({ ideas: transformedIdeas });
       set({ candidates: Array.from(uniqueCandidates.values()) });
     } catch (err) {
       console.error('Error loading opinions:', err);
@@ -123,12 +201,15 @@ export const useSwipeStore = create<SwipeState>((set, get) => ({
     }
   },
 
-  // Answer idea
+  // Answer idea - now uses Edge Function
   answerIdea: async (userId: string, answer: 'agree' | 'disagree') => {
     const { ideas, currentIdeaIndex, answers } = get();
     const currentIdea = ideas[currentIdeaIndex];
 
     if (!currentIdea || !userId) return;
+
+    // Extract question_id from opinion_id (format: "q_123")
+    const questionId = `q_${currentIdea.id}`;
 
     const newAnswer: UserAnswer = {
       opinionId: currentIdea.id,
@@ -142,11 +223,62 @@ export const useSwipeStore = create<SwipeState>((set, get) => ({
       currentIdeaIndex: currentIdeaIndex + 1
     });
 
-    // Save to database (fire and forget, handle errors silently)
+    // Submit answer to Edge Function (which also saves to DB and updates scores)
     try {
-      await saveAnswer(userId, currentIdea.id, answer === 'agree');
+      const response = await submitAnswerToEdgeFunction(
+        userId,
+        questionId,
+        answer === 'agree'
+      );
+
+      // Handle strong match flag from response
+      if (response.has_strong_match) {
+        // The shouldShowMatch logic will handle this
+      }
+
+      // Pre-fetch next question if we're running low on questions
+      const { ideas: currentIdeas } = get();
+      if (currentIdeas.length - (currentIdeaIndex + 1) < 5) {
+        // Pre-fetch more questions in the background
+        const nextQuestion = await getNextQuestion(userId);
+        if (nextQuestion) {
+          const opinion = await getOpinionFromQuestionId(nextQuestion.question_id);
+          if (opinion) {
+            const opinionIdMatch = nextQuestion.question_id.match(/^q_(\d+)$/);
+            if (opinionIdMatch) {
+              const opinionId = parseInt(opinionIdMatch[1], 10);
+              const newIdea: Idea = {
+                id: opinionId,
+                candidateId: opinion.candidate_id,
+                text: nextQuestion.statement,
+                topicId: opinion.topic_id,
+                topicName: opinion.topic.name,
+                emoji: opinion.topic.emoji,
+              };
+              set({ ideas: [...currentIdeas, newIdea] });
+            }
+          }
+        }
+      }
     } catch (err) {
-      console.error('Error saving answer:', err);
+      console.error('Error submitting answer:', err);
+      // Fallback to old save method if Edge Function fails
+      try {
+        await saveAnswer(userId, currentIdea.id, answer === 'agree');
+      } catch (fallbackErr) {
+        console.error('Error in fallback save:', fallbackErr);
+      }
+    }
+  },
+
+  // Load matches from Edge Function
+  loadMatches: async (userId: string) => {
+    try {
+      const matches = await getMatches(userId);
+      return matches;
+    } catch (err) {
+      console.error('Error loading matches:', err);
+      throw err;
     }
   },
 
@@ -175,7 +307,8 @@ export const useSwipeStore = create<SwipeState>((set, get) => ({
 
   shouldShowMatch: () => {
     const { answers, hasShownImminentMatch } = get();
-    return answers.length >= 8 && !hasShownImminentMatch;
+    // Updated to match Edge Function's 10-answer threshold
+    return answers.length >= 10 && !hasShownImminentMatch;
   },
 
   markMatchShown: () => set({ hasShownImminentMatch: true }),
