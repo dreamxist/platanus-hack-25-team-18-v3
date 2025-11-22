@@ -235,12 +235,12 @@ export class UserManager {
 
     // 3. Fetch a random opinion that hasn't been answered
     // Note: "random" in SQL can be slow for huge tables, but fine for this scale.
-    // We use a stored procedure or just order by random() if supported, 
+    // We use a stored procedure or just order by random() if supported,
     // but Supabase JS client doesn't support .order('random()') directly easily without RPC.
     // Workaround: Fetch a batch of candidate opinions and pick one randomly in code,
-    // OR use an RPC. For now, let's fetch a small batch of un-answered opinions and pick one.
-    
-    let query = this.supabase
+    // OR use an RPC. For now, let's fetch a batch of un-answered opinions and pick one.
+
+    const query = this.supabase
       .from("Opinions")
       .select(`
         id,
@@ -250,8 +250,9 @@ export class UserManager {
       `)
       .in("topic_id", topicIds);
 
-    // Fetch more candidates to account for filtering (fetch 50, filter, then pick from remaining)
-    const { data: allOpinions, error } = await query.limit(50);
+    // Fetch a large batch to ensure we have enough candidates
+    // Using 1000 instead of 50 to handle cases where user has answered many questions
+    const { data: allOpinions, error } = await query.limit(1000);
 
     if (error) {
       console.error(`[getNextRandomQuestion] Query error:`, error);
@@ -263,17 +264,12 @@ export class UserManager {
       return null;
     }
 
-    // Filter out already answered opinions
+    // Filter out already answered opinions in memory
     const answeredSet = new Set(answeredOpinionIds);
     const opinions = allOpinions.filter((op) => !answeredSet.has(op.id));
 
-    if (error) {
-      console.error(`[getNextRandomQuestion] Query error:`, error);
-      return null;
-    }
-
     if (!opinions || opinions.length === 0) {
-      console.log(`[getNextRandomQuestion] No more un-answered opinions available`);
+      console.log(`[getNextRandomQuestion] No more unanswered opinions available`);
       return null;
     }
 
