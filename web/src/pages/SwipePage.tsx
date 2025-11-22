@@ -11,6 +11,7 @@ import {
   animate,
 } from "framer-motion";
 import { spring, swipeConfig } from "@/config/animations";
+import { Loader2 } from "lucide-react";
 
 const SwipePage = () => {
   console.log("SwipePage component mounted");
@@ -155,6 +156,13 @@ const SwipePage = () => {
     return () => unsubscribe();
   }, [x, isExiting]);
 
+  // Reset motion values when card changes
+  useEffect(() => {
+    if (currentIdea) {
+      x.set(0);
+    }
+  }, [currentIdea?.id, x]);
+
   console.log(
     "SwipePage render - isLoading:",
     isLoading,
@@ -168,7 +176,10 @@ const SwipePage = () => {
   if (isLoading) {
     return (
       <div className="h-screen w-full fixed inset-0 bg-gradient-to-br from-white via-blue-50 to-red-50 flex items-center justify-center">
-        <div className="text-foreground text-xl">Cargando opiniones...</div>
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 text-primary animate-spin" />
+          <div className="text-foreground text-xl">Cargando opiniones...</div>
+        </div>
       </div>
     );
   }
@@ -200,7 +211,6 @@ const SwipePage = () => {
 
     await animate(x, exitDistance, { duration: 0.25, ease: "easeOut" });
     await answerIdea(direction === "right" ? "agree" : "disagree");
-    x.set(0);
     setSwipeDirection(null);
     setIsExiting(false);
   };
