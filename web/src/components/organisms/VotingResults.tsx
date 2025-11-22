@@ -39,6 +39,7 @@ const getCandidateColor = (candidateId: number): string => {
 };
 
 export const VotingResults = () => {
+
   const [results, setResults] = useState<CandidateResult[]>([]);
   const [totalVotes, setTotalVotes] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
