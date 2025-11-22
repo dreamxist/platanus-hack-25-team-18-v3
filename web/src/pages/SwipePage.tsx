@@ -1,9 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAppContext } from "@/context/AppContext";
 import { SwipeCard } from "@/components/molecules/SwipeCard";
 import { getUserTopicIds } from "@/services/opinionsService";
-import { motion, useMotionValue, useTransform, PanInfo, animate } from "framer-motion";
+import {
+  motion,
+  useMotionValue,
+  useTransform,
+  PanInfo,
+  animate,
+} from "framer-motion";
 import { spring, swipeConfig } from "@/config/animations";
 
 const SwipePage = () => {
@@ -29,17 +35,31 @@ const SwipePage = () => {
   } = useAppContext();
 
   const currentIdea = getCurrentIdea();
-  const currentIndex = ideas.findIndex(idea => idea.id === currentIdea?.id);
-  const nextIdea = currentIndex >= 0 && currentIndex < ideas.length - 1 ? ideas[currentIndex + 1] : null;
+  const currentIndex = ideas.findIndex((idea) => idea.id === currentIdea?.id);
+  const nextIdea =
+    currentIndex >= 0 && currentIndex < ideas.length - 1
+      ? ideas[currentIndex + 1]
+      : null;
   const [hasInitialized, setHasInitialized] = useState(false);
-  const [swipeDirection, setSwipeDirection] = useState<"left" | "right" | null>(null);
+  const [swipeDirection, setSwipeDirection] = useState<"left" | "right" | null>(
+    null
+  );
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+  const isInitializingRef = useRef(false);
 
   // Framer Motion values for smooth dragging
   const x = useMotionValue(0);
-  const rotate = useTransform(x, [-200, 0, 200], [-swipeConfig.rotation, 0, swipeConfig.rotation]);
-  const opacity = useTransform(x, [-200, -100, 0, 100, 200], [0.5, 1, 1, 1, 0.5]);
+  const rotate = useTransform(
+    x,
+    [-200, 0, 200],
+    [-swipeConfig.rotation, 0, swipeConfig.rotation]
+  );
+  const opacity = useTransform(
+    x,
+    [-200, -100, 0, 100, 200],
+    [0.5, 1, 1, 1, 0.5]
+  );
   const backgroundColor = useTransform(
     x,
     [-200, -50, 0, 50, 200],
@@ -48,7 +68,7 @@ const SwipePage = () => {
       "rgba(239, 68, 68, 0.05)",
       "rgba(255, 255, 255, 0)",
       "rgba(34, 197, 94, 0.05)",
-      "rgba(34, 197, 94, 0.2)" // green on right
+      "rgba(34, 197, 94, 0.2)", // green on right
     ]
   );
 
@@ -56,7 +76,14 @@ const SwipePage = () => {
 
   // Load opinions when component mounts
   useEffect(() => {
+    // Prevent multiple simultaneous initializations
+    if (isInitializingRef.current || hasInitialized) {
+      console.log("SwipePage - Already initialized or initializing, skipping");
+      return;
+    }
+
     console.log("SwipePage - useEffect triggered");
+    isInitializingRef.current = true;
 
     const initializeOpinions = async () => {
       // Use userId from URL if available, otherwise use context userId
@@ -67,6 +94,7 @@ const SwipePage = () => {
       if (!effectiveUserId) {
         console.log("SwipePage - No userId found, skipping initialization");
         setHasInitialized(true);
+        isInitializingRef.current = false;
         return;
       }
 
@@ -75,13 +103,17 @@ const SwipePage = () => {
         const topicIds = await getUserTopicIds(effectiveUserId);
         console.log("SwipePage - User topics:", topicIds);
 
-        // Load opinions filtered by those topics
-        await loadOpinions(topicIds.length > 0 ? topicIds : undefined);
+        // Load opinions filtered by those topics (pass userId for Edge Function)
+        await loadOpinions(
+          topicIds.length > 0 ? topicIds : undefined,
+          effectiveUserId
+        );
         console.log("SwipePage - Opinions loaded successfully");
       } catch (err) {
-        console.error("Error initializing opinions:", err);
+        console.error("SwipePage - Error initializing opinions:", err);
       } finally {
         setHasInitialized(true);
+        isInitializingRef.current = false;
       }
     };
 
@@ -123,7 +155,14 @@ const SwipePage = () => {
     return () => unsubscribe();
   }, [x, isExiting]);
 
-  console.log("SwipePage render - isLoading:", isLoading, "currentIdea:", currentIdea, "hasInitialized:", hasInitialized);
+  console.log(
+    "SwipePage render - isLoading:",
+    isLoading,
+    "currentIdea:",
+    currentIdea,
+    "hasInitialized:",
+    hasInitialized
+  );
 
   // Show loading state
   if (isLoading) {
@@ -156,8 +195,8 @@ const SwipePage = () => {
           ? window.innerWidth
           : 600
         : typeof window !== "undefined"
-          ? -window.innerWidth
-          : -600;
+        ? -window.innerWidth
+        : -600;
 
     await animate(x, exitDistance, { duration: 0.25, ease: "easeOut" });
     await answerIdea(direction === "right" ? "agree" : "disagree");
@@ -166,7 +205,10 @@ const SwipePage = () => {
     setIsExiting(false);
   };
 
-  const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+  const handleDragEnd = (
+    _event: MouseEvent | TouchEvent | PointerEvent,
+    info: PanInfo
+  ) => {
     const { offset, velocity } = info;
 
     // Check if velocity is high enough for a flick
@@ -202,23 +244,24 @@ const SwipePage = () => {
         className="absolute inset-0 pointer-events-none"
         style={{ backgroundColor }}
       />
-      
-      <div className={`h-full w-full flex items-center justify-center px-4 sm:px-6 relative z-10 ${isTransitioning ? 'animate-slide-up-exit' : ''}`}>
+
+      <div
+        className={`h-full w-full flex items-center justify-center px-4 sm:px-6 relative z-10 ${
+          isTransitioning ? "animate-slide-up-exit" : ""
+        }`}
+      >
         <div className="w-full max-w-lg relative">
           {/* Next card in the background - only show when not animating */}
           {nextIdea && !isExiting && (
             <div
               className="absolute inset-0 pointer-events-none"
-              style={{ 
-                transform: 'scale(0.95)',
+              style={{
+                transform: "scale(0.95)",
                 opacity: 0.5,
                 zIndex: 0,
               }}
             >
-              <SwipeCard
-                idea={nextIdea}
-                swipeDirection={null}
-              />
+              <SwipeCard idea={nextIdea} swipeDirection={null} />
             </div>
           )}
 
@@ -238,10 +281,7 @@ const SwipePage = () => {
             onDragEnd={handleDragEnd}
             whileTap={{ cursor: "grabbing" }}
           >
-            <SwipeCard
-              idea={currentIdea}
-              swipeDirection={swipeDirection}
-            />
+            <SwipeCard idea={currentIdea} swipeDirection={swipeDirection} />
           </motion.div>
         </div>
       </div>
