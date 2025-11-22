@@ -111,87 +111,129 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       try {
         // If userId is provided, use Edge Function to fetch questions
         if (userId) {
-          // Pre-fetch 15 questions for smooth swiping
-          const preFetchCount = 15;
-          const questions: Array<{
-            question: QuestionResponse;
-            opinion: OpinionWithDetails | null;
-          }> = [];
-
-          console.log(
-            `AppContext - Pre-fetching ${preFetchCount} questions...`
-          );
-          for (let i = 0; i < preFetchCount; i++) {
+          // Helper function to fetch a single question with opinion details
+          const fetchSingleQuestion = async () => {
             const question = await getNextQuestion(userId);
-            if (!question) {
-              console.log(`AppContext - No more questions at index ${i}`);
-              // No more questions available
-              break;
-            }
+            if (!question) return null;
 
-            // Get opinion details to get candidate and topic info
-            const opinion = await getOpinionFromQuestionId(
-              question.question_id
-            );
-            questions.push({ question, opinion });
-          }
-          console.log(`AppContext - Pre-fetched ${questions.length} questions`);
+            const opinion = await getOpinionFromQuestionId(question.question_id);
+            return { question, opinion };
+          };
+
+          // OPTIMIZATION: Load 3 questions initially (parallel), then load more in background
+          const initialCount = 3;
+          const totalCount = 15;
+
+          console.log(`AppContext - Loading ${initialCount} questions initially (parallel)...`);
+
+          // Fetch initial questions in parallel for faster initial load
+          const initialPromises = Array(initialCount).fill(null).map(() => fetchSingleQuestion());
+          const initialResults = await Promise.all(initialPromises);
+          const questions = initialResults.filter((q): q is { question: QuestionResponse; opinion: OpinionWithDetails | null } => q !== null);
+
+          console.log(`AppContext - Loaded ${questions.length} initial questions`);
 
           if (questions.length === 0) {
             setError(
               "No hay más preguntas disponibles para los temas seleccionados."
             );
             setIsLoading(false);
+            setIsLoadingOpinions(false);
             return;
           }
 
           // Transform questions to Ideas
-          const transformedIdeas: Idea[] = [];
-          const uniqueCandidates = new Map<number, Candidate>();
+          const transformQuestions = (questionsToTransform: Array<{ question: QuestionResponse; opinion: OpinionWithDetails | null }>) => {
+            const transformedIdeas: Idea[] = [];
+            const uniqueCandidates = new Map<number, Candidate>();
 
-          for (const { question, opinion } of questions) {
-            if (!opinion) {
-              console.warn(
-                "Could not fetch opinion details for question:",
-                question.question_id
-              );
-              continue;
-            }
+            for (const { question, opinion } of questionsToTransform) {
+              if (!opinion) {
+                console.warn(
+                  "Could not fetch opinion details for question:",
+                  question.question_id
+                );
+                continue;
+              }
 
-            // Extract opinion_id from question_id (format: "q_123")
-            const opinionIdMatch = question.question_id.match(/^q_(\d+)$/);
-            if (!opinionIdMatch) {
-              console.warn("Invalid question_id format:", question.question_id);
-              continue;
-            }
+              // Extract opinion_id from question_id (format: "q_123")
+              const opinionIdMatch = question.question_id.match(/^q_(\d+)$/);
+              if (!opinionIdMatch) {
+                console.warn("Invalid question_id format:", question.question_id);
+                continue;
+              }
 
-            const opinionId = parseInt(opinionIdMatch[1], 10);
+              const opinionId = parseInt(opinionIdMatch[1], 10);
 
-            transformedIdeas.push({
-              id: opinionId,
-              candidateId: opinion.candidate_id,
-              text: question.statement,
-              topicId: opinion.topic_id,
-              topicName: opinion.topic.name,
-              emoji: opinion.topic.emoji,
-            });
-
-            // Track unique candidates
-            if (!uniqueCandidates.has(opinion.candidate.id)) {
-              uniqueCandidates.set(opinion.candidate.id, {
-                id: opinion.candidate.id,
-                name: opinion.candidate.name,
-                partyName: opinion.candidate.political_party,
-                shortLabel: opinion.candidate.name,
-                avatarUrl: opinion.candidate.image,
-                color: "hsl(270, 65%, 55%)",
-                age: opinion.candidate.age,
+              transformedIdeas.push({
+                id: opinionId,
+                candidateId: opinion.candidate_id,
+                text: question.statement,
+                topicId: opinion.topic_id,
+                topicName: opinion.topic.name,
+                emoji: opinion.topic.emoji,
               });
-            }
-          }
 
+              // Track unique candidates
+              if (!uniqueCandidates.has(opinion.candidate.id)) {
+                uniqueCandidates.set(opinion.candidate.id, {
+                  id: opinion.candidate.id,
+                  name: opinion.candidate.name,
+                  partyName: opinion.candidate.political_party,
+                  shortLabel: opinion.candidate.name,
+                  avatarUrl: opinion.candidate.image,
+                  color: "hsl(270, 65%, 55%)",
+                  age: opinion.candidate.age,
+                });
+              }
+            }
+
+            return { transformedIdeas, uniqueCandidates };
+          };
+
+          // Transform and display initial questions immediately
+          const { transformedIdeas, uniqueCandidates } = transformQuestions(questions);
           setIdeas(transformedIdeas);
           setCandidates(Array.from(uniqueCandidates.values()));
+
+          // Set loading to false so UI shows immediately
+          setIsLoading(false);
+          setIsLoadingOpinions(false);
+
+          // Load remaining questions in background
+          const remainingCount = totalCount - initialCount;
+          if (remainingCount > 0) {
+            console.log(`AppContext - Loading ${remainingCount} more questions in background...`);
+
+            // Don't await - let this run in background
+            (async () => {
+              try {
+                const remainingPromises = Array(remainingCount).fill(null).map(() => fetchSingleQuestion());
+                const remainingResults = await Promise.all(remainingPromises);
+                const remainingQuestions = remainingResults.filter((q): q is { question: QuestionResponse; opinion: OpinionWithDetails | null } => q !== null);
+
+                console.log(`AppContext - Loaded ${remainingQuestions.length} additional questions in background`);
+
+                if (remainingQuestions.length > 0) {
+                  const { transformedIdeas: moreIdeas, uniqueCandidates: moreCandidates } = transformQuestions(remainingQuestions);
+
+                  // Append to existing ideas and candidates
+                  setIdeas(prev => [...prev, ...moreIdeas]);
+                  setCandidates(prev => {
+                    const candidateMap = new Map(prev.map(c => [c.id, c]));
+                    moreCandidates.forEach((candidate, id) => {
+                      if (!candidateMap.has(id)) {
+                        candidateMap.set(id, candidate);
+                      }
+                    });
+                    return Array.from(candidateMap.values());
+                  });
+                }
+              } catch (err) {
+                console.error("Error loading background questions:", err);
+              }
+            })();
+          }
         } else {
           // Fall back to old method when no userId provided
           const opinionsData = await fetchOpinions(topicIds);
