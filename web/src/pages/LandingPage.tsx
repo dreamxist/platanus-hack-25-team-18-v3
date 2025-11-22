@@ -60,11 +60,11 @@ const LandingPage = () => {
       >
         {/* Badge animado */}
         <motion.div
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-8"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-4"
           variants={fadeInUp}
         >
           <Sparkles className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium text-primary">Elecciones 2024</span>
+          <span className="text-sm font-medium text-primary">Elecciones 2025</span>
         </motion.div>
 
         {/* Título principal */}
@@ -88,7 +88,7 @@ const LandingPage = () => {
           <Button
             size="lg"
             onClick={handleStart}
-            className="text-lg px-8 py-6 h-auto group shadow-lg hover:shadow-xl transition-shadow"
+            className="text-lg px-8 py-4 h-auto group shadow-lg hover:shadow-xl transition-shadow"
           >
             Comenzar ahora
             <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
