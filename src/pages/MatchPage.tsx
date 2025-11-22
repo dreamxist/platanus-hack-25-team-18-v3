@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAppContext } from "@/context/AppContext";
 import { getTopCandidate } from "@/data/mockData";
@@ -25,6 +25,32 @@ const MatchPage = () => {
   const [loading, setLoading] = useState(true);
 
   const topCandidate = getTopCandidate(answers, candidates);
+
+  const fetchTopics = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("Topics")
+        .select("id, name, emoji")
+        .order("name");
+
+      if (error) {
+        throw error;
+      }
+      setTopics(data || []);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los temas",
+        variant: "destructive",
+      });
+
+      console.error("Error fetching topics:", errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
   useEffect(() => {
     fetchTopics();
@@ -58,27 +84,7 @@ const MatchPage = () => {
     }, 600);
 
     return () => clearTimeout(timer);
-  }, []);
-
-  const fetchTopics = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("Topics")
-        .select("id, name, emoji")
-        .order("name");
-
-      if (error) throw error;
-      setTopics(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los temas",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [fetchTopics]);
 
   if (!topCandidate) {
     navigate(`/?userId=${userId}`);
@@ -87,7 +93,7 @@ const MatchPage = () => {
 
   if (loading) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-gradient-to-br from-white via-blue-50 to-red-50">
+      <div className="min-h-[100dvh] w-full flex items-center justify-center bg-gradient-to-br from-white via-blue-50 to-red-50 pt-16">
         <p className="text-lg text-muted-foreground">Cargando...</p>
       </div>
     );
@@ -95,12 +101,12 @@ const MatchPage = () => {
 
   return (
     <motion.div
-      className="h-screen w-full fixed inset-0 overflow-hidden bg-gradient-to-br from-white via-blue-50 to-red-50"
+      className="relative min-h-[100dvh] w-full overflow-hidden bg-gradient-to-br from-white via-blue-50 to-red-50"
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       transition={spring.smooth}
     >
-      <div className="h-full w-full overflow-y-auto">
+      <div className="w-full overflow-visible pt-16 pb-10">
         {/* Title */}
         <motion.div
           className="text-center pt-12 pb-4 px-6"
