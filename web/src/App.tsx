@@ -28,16 +28,18 @@ const App = () => {
         <BrowserRouter>
           <AppProvider>
             <Routes>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/topics" element={<TopicsPage />} />
-              <Route path="/swipe" element={<SwipePage />} />
-            <Route path="/topic-swipe" element={<TopicSwipePage />} />
-            <Route path="/match" element={<MatchPage />} />
-            <Route path="/chat" element={<ChatPage />} />
-            <Route path="/reveal" element={<RevealPage />} />
-            <Route path="/voting-results" element={<VotingResultsPage />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
+              <Route element={<AppLayout />}>
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/topics" element={<TopicsPage />} />
+                <Route path="/swipe" element={<SwipePage />} />
+                <Route path="/topic-swipe" element={<TopicSwipePage />} />
+                <Route path="/match" element={<MatchPage />} />
+                <Route path="/chat" element={<ChatPage />} />
+                <Route path="/reveal" element={<RevealPage />} />
+                <Route path="/voting-results" element={<VotingResultsPage />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Route>
             </Routes>
           </AppProvider>
         </BrowserRouter>

@@ -49,9 +49,9 @@ const ChatPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-white via-blue-50 to-red-50">
+    <div className="h-dvh flex flex-col bg-gradient-to-br from-white via-blue-50 to-red-50">
       {/* Header with blurred avatar */}
-      <header className="w-full px-4 py-4 bg-card/80 backdrop-blur-lg border-b border-border/50">
+      <header className="w-full px-4 py-4 bg-card/80 backdrop-blur-lg border-b border-border/50 flex-shrink-0">
         <div className="max-w-2xl mx-auto flex items-center gap-4">
           <div className="relative">
             <img
@@ -70,8 +70,8 @@ const ChatPage = () => {
       </header>
 
       {/* Chat area */}
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 max-w-2xl w-full mx-auto flex flex-col">
+      <main className="flex-1 flex flex-col overflow-hidden min-h-0">
+        <div className="flex-1 max-w-2xl w-full mx-auto flex flex-col min-h-0">
           <ChatContainer
             candidateName={topCandidate.name}
             candidateId={topCandidate.id}

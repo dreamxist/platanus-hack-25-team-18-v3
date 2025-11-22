@@ -70,6 +70,7 @@ All colors MUST be HSL.
 
   /* Prefer reduced motion for accessibility */
   @media (prefers-reduced-motion: reduce) {
+
     *,
     *::before,
     *::after {
@@ -86,9 +87,22 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html,
   body {
     @apply bg-background text-foreground;
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    height: 100%;
+    /* Prevent rubber-band scrolling on iOS */
+    overscroll-behavior: none;
+    /* Allow vertical scrolling */
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  #root {
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   /* Custom scrollbar */
@@ -148,11 +162,9 @@ All colors MUST be HSL.
   }
 
   .glass-effect {
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.1),
-      rgba(255, 255, 255, 0.05)
-    );
+    background: linear-gradient(135deg,
+        rgba(255, 255, 255, 0.1),
+        rgba(255, 255, 255, 0.05));
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.18);
@@ -172,11 +184,9 @@ All colors MUST be HSL.
   }
 
   .glass-effect-nav {
-    background: linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.15),
-      rgba(255, 255, 255, 0.05)
-    );
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.15),
+        rgba(255, 255, 255, 0.05));
     backdrop-filter: blur(10px) saturate(150%);
     -webkit-backdrop-filter: blur(10px) saturate(150%);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -190,15 +200,20 @@ All colors MUST be HSL.
   }
 
   @keyframes liquid-movement {
-    0%, 100% {
+
+    0%,
+    100% {
       background-position: 0% 50%, 100% 100%, 50% 0%, 0% 0%;
     }
+
     25% {
       background-position: 30% 60%, 80% 90%, 60% 10%, 0% 0%;
     }
+
     50% {
       background-position: 60% 70%, 60% 80%, 70% 20%, 0% 0%;
     }
+
     75% {
       background-position: 30% 40%, 90% 70%, 40% 30%, 0% 0%;
     }
@@ -209,9 +224,11 @@ All colors MUST be HSL.
       transform: scale3d(0, 0, 1);
       opacity: 0;
     }
+
     50% {
       opacity: 1;
     }
+
     100% {
       transform: scale3d(150, 150, 1);
       opacity: 1;
@@ -228,6 +245,7 @@ All colors MUST be HSL.
       transform: translate3d(0, 0, 0);
       opacity: 1;
     }
+
     100% {
       transform: translate3d(0, -100%, 0);
       opacity: 0;
@@ -244,6 +262,7 @@ All colors MUST be HSL.
       transform: translate3d(0, -100%, 0);
       opacity: 0;
     }
+
     100% {
       transform: translate3d(0, 0, 0);
       opacity: 1;
@@ -260,6 +279,7 @@ All colors MUST be HSL.
       transform: translate3d(0, 100%, 0);
       opacity: 0;
     }
+
     100% {
       transform: translate3d(0, 0, 0);
       opacity: 1;
@@ -284,6 +304,7 @@ All colors MUST be HSL.
       opacity: 1;
       transform: translate3d(0, 0, 0);
     }
+
     100% {
       opacity: 0;
       transform: translate3d(0, -30px, 0);
@@ -300,6 +321,7 @@ All colors MUST be HSL.
       opacity: 0;
       transform: translate3d(0, 30px, 0);
     }
+
     100% {
       opacity: 1;
       transform: translate3d(0, 0, 0);
@@ -315,6 +337,32 @@ All colors MUST be HSL.
   .gpu-accelerated {
     transform: translate3d(0, 0, 0);
     will-change: transform;
+  }
+
+  /* Mobile viewport utilities */
+  .h-dvh {
+    height: 100vh;
+    /* Fallback */
+    height: 100dvh;
+  }
+
+  .min-h-dvh {
+    min-height: 100vh;
+    /* Fallback */
+    min-height: 100dvh;
+  }
+
+  /* Safe area support for devices with notch */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Prevent iOS Safari scroll bounce */
+  .prevent-scroll {
+    position: fixed;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
   }
 }
 

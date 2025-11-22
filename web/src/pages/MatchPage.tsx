@@ -107,7 +107,7 @@ const MatchPage = () => {
 
   return (
     <motion.div
-      className="relative min-h-[100dvh] w-full overflow-hidden bg-gradient-to-br from-white via-blue-50 to-red-50"
+      className="relative min-h-[100dvh] w-full overflow-y-auto bg-gradient-to-br from-white via-blue-50 to-red-50"
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       transition={spring.smooth}

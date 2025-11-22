@@ -85,16 +85,17 @@ export const ChatContainer = ({
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const conversationPromiseRef = useRef<Promise<number> | null>(null);
   const isInputLocked = isSending || isCreatingConversation;
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isSending]);
+  }, [messages, isSending, scrollToBottom]);
 
   useEffect(() => {
     setMessages([createWelcomeMessage()]);
@@ -189,9 +190,9 @@ export const ChatContainer = ({
   }, [ensureConversation, inputValue, isSending]);
 
   return (
-    <div className={cn("flex flex-col h-full", className)}>
+    <div className={cn("flex flex-col h-full min-h-0", className)}>
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 min-h-0">
         {messages.map((message) => (
           <ChatBubble
             key={message.id}
@@ -205,7 +206,7 @@ export const ChatContainer = ({
       </div>
 
       {/* Action buttons */}
-      <div className="px-4 py-4 border-t border-border/50 space-y-3">
+      <div className="px-4 py-4 border-t border-border/50 space-y-3 flex-shrink-0 bg-background/80 backdrop-blur-sm">
         <Button
           onClick={onReveal}
           className="w-full gradient-primary text-primary-foreground font-semibold"
@@ -224,13 +225,14 @@ export const ChatContainer = ({
       </div>
 
       {/* Input area */}
-      <div className="px-4 py-4 border-t border-border/50 bg-card/80 backdrop-blur-lg">
+      <div className="px-4 py-4 border-t border-border/50 bg-card/80 backdrop-blur-lg flex-shrink-0 safe-bottom">
         <div
           className="flex gap-2 relative"
           aria-disabled={isInputLocked}
           aria-busy={isSending}
         >
           <Input
+            ref={inputRef}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => {
@@ -239,6 +241,7 @@ export const ChatContainer = ({
                 void handleSend();
               }
             }}
+            onFocus={scrollToBottom}
             placeholder="Pregúntale lo que quieras..."
             className="flex-1"
             disabled={isInputLocked}
