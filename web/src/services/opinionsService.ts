@@ -55,90 +55,6 @@ export interface UserAnswerData {
 }
 
 /**
- * Fetch all opinions with their associated topic and candidate data
- * Optionally filter by topic IDs
- */
-export async function fetchOpinions(
-  topicIds?: number[]
-): Promise<OpinionWithDetails[]> {
-  let query = supabase
-    .from("Opinions")
-    .select(
-      `
-      id,
-      text,
-      candidate_id,
-      topic_id,
-      Candidates (
-        id,
-        name,
-        political_party,
-        image,
-        age
-      ),
-      Topics (
-        id,
-        name,
-        emoji
-      )
-    `
-    )
-    .order("id");
-
-  if (topicIds && topicIds.length > 0) {
-    query = query.in("topic_id", topicIds);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error("Error fetching opinions:", error);
-    throw error;
-  }
-
-  if (!data) {
-    return [];
-  }
-
-  return data
-    .filter((opinion) => opinion.Candidates && opinion.Topics)
-    .map((opinion) => ({
-      id: opinion.id,
-      text: opinion.text || "",
-      candidate_id: opinion.candidate_id,
-      topic_id: opinion.topic_id,
-      candidate: {
-        id: Array.isArray(opinion.Candidates)
-          ? opinion.Candidates[0].id
-          : opinion.Candidates.id,
-        name: Array.isArray(opinion.Candidates)
-          ? opinion.Candidates[0].name || ""
-          : opinion.Candidates.name || "",
-        political_party: Array.isArray(opinion.Candidates)
-          ? opinion.Candidates[0].political_party || ""
-          : opinion.Candidates.political_party || "",
-        image: Array.isArray(opinion.Candidates)
-          ? opinion.Candidates[0].image || ""
-          : opinion.Candidates.image || "",
-        age: Array.isArray(opinion.Candidates)
-          ? opinion.Candidates[0].age || 0
-          : opinion.Candidates.age || 0,
-      },
-      topic: {
-        id: Array.isArray(opinion.Topics)
-          ? opinion.Topics[0].id
-          : opinion.Topics.id,
-        name: Array.isArray(opinion.Topics)
-          ? opinion.Topics[0].name
-          : opinion.Topics.name,
-        emoji: Array.isArray(opinion.Topics)
-          ? (opinion.Topics[0] as any).emoji || ""
-          : (opinion.Topics as any).emoji || "",
-      },
-    }));
-}
-
-/**
  * Save a user's answer (like/dislike) to an opinion
  */
 export async function saveAnswer(
@@ -272,8 +188,8 @@ export async function getOpinionFromQuestionId(
       id: Array.isArray(data.Topics) ? data.Topics[0].id : data.Topics.id,
       name: Array.isArray(data.Topics) ? data.Topics[0].name : data.Topics.name,
       emoji: Array.isArray(data.Topics)
-        ? (data.Topics[0] as any).emoji || ""
-        : (data.Topics as any).emoji || "",
+        ? data.Topics[0].emoji || ""
+        : data.Topics.emoji || "",
     },
   };
 }
@@ -286,8 +202,8 @@ export async function getNextQuestion(
   userId: string
 ): Promise<QuestionResponse | null> {
   try {
-    const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
     // Get session for auth token
     const {
@@ -343,8 +259,8 @@ export async function submitAnswer(
   agree: boolean
 ): Promise<AnswerResponse> {
   try {
-    const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
     // Get session for auth token
     const {
@@ -389,8 +305,8 @@ export async function submitAnswer(
  */
 export async function getMatches(userId: string): Promise<MatchesResponse> {
   try {
-    const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
     // Get session for auth token
     const {

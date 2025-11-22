@@ -25,7 +25,6 @@ const SwipePage = () => {
 
   const {
     getCurrentIdea,
-    answerIdea,
     shouldShowMatch,
     markMatchShown,
     loadOpinions,
@@ -33,6 +32,7 @@ const SwipePage = () => {
     error,
     userId: contextUserId,
     ideas,
+    answerIdea,
   } = useAppContext();
 
   const currentIdea = getCurrentIdea();
@@ -202,7 +202,8 @@ const SwipePage = () => {
         : -600;
 
     await animate(x, exitDistance, { duration: 0.25, ease: "easeOut" });
-    await answerIdea(direction === "right" ? "agree" : "disagree");
+    await answerIdea(userId, direction === "right" ? "agree" : "disagree");
+    x.set(0);
     setSwipeDirection(null);
     setIsExiting(false);
   };
