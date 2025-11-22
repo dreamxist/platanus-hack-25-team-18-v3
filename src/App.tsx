@@ -12,6 +12,7 @@ import TopicSwipePage from "./pages/TopicSwipePage";
 import MatchPage from "./pages/MatchPage";
 import ChatPage from "./pages/ChatPage";
 import RevealPage from "./pages/RevealPage";
+import VotingResultsPage from "./pages/VotingResultsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => {
             <Route path="/match" element={<MatchPage />} />
             <Route path="/chat" element={<ChatPage />} />
             <Route path="/reveal" element={<RevealPage />} />
+            <Route path="/voting-results" element={<VotingResultsPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

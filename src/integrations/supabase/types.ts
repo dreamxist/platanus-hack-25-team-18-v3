@@ -253,6 +253,41 @@ export type Database = {
           },
         ]
       }
+      UserMatches: {
+        Row: {
+          created_at: string
+          id: number
+          candidate_id: number
+          updated_at: string
+          user_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          candidate_id: number
+          updated_at?: string
+          user_id: string
+          status: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          candidate_id?: number
+          updated_at?: string
+          user_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "UserMatches_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "Candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
