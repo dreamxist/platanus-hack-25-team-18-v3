@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { UserAnswer, Idea, Candidate } from '@/data/mockData';
 import {
-  fetchOpinions,
   saveAnswer,
   getUserAnswers,
   OpinionWithDetails,
@@ -90,45 +89,8 @@ export const useSwipeStore = create<SwipeState>((set, get) => ({
     });
 
     try {
-      // If no userId provided, fall back to old method
-      if (!userId) {
-        const opinionsData = await fetchOpinions(topicIds);
-
-        // Transform OpinionWithDetails to Idea format
-        const transformedIdeas: Idea[] = opinionsData.map((opinion) => ({
-          id: opinion.id,
-          candidateId: opinion.candidate_id,
-          text: opinion.text,
-          topicId: opinion.topic_id,
-          topicName: opinion.topic.name,
-          emoji: opinion.topic.emoji,
-        }));
-
-        set({ ideas: transformedIdeas });
-
-        // Extract unique candidates
-        const uniqueCandidates = new Map<number, Candidate>();
-        opinionsData.forEach((opinion) => {
-          if (!uniqueCandidates.has(opinion.candidate.id)) {
-            uniqueCandidates.set(opinion.candidate.id, {
-              id: opinion.candidate.id,
-              name: opinion.candidate.name,
-              partyName: opinion.candidate.political_party,
-              shortLabel: opinion.candidate.name,
-              avatarUrl: opinion.candidate.image,
-              color: 'hsl(270, 65%, 55%)',
-              age: opinion.candidate.age,
-            });
-          }
-        });
-
-        set({ candidates: Array.from(uniqueCandidates.values()) });
-        set({ isLoading: false });
-        return;
-      }
-
-      // Use Edge Function to fetch questions (pre-fetch 15 questions for smooth swiping)
-      const preFetchCount = 15;
+      // Use Edge Function to fetch questions (pre-fetch 3 questions for smooth swiping)
+      const preFetchCount = 3;
       const questions: Array<{ question: QuestionResponse; opinion: OpinionWithDetails | null }> = [];
 
       for (let i = 0; i < preFetchCount; i++) {
@@ -205,6 +167,7 @@ export const useSwipeStore = create<SwipeState>((set, get) => ({
   answerIdea: async (userId: string, answer: 'agree' | 'disagree') => {
     const { ideas, currentIdeaIndex, answers } = get();
     const currentIdea = ideas[currentIdeaIndex];
+    console.log('debug', 'userId', userId, 'currentIdea', currentIdea, 'ideas');
 
     if (!currentIdea || !userId) return;
 

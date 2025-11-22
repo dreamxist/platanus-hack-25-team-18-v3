@@ -11,7 +11,7 @@ const TopicSwipePage = () => {
   const topicId = searchParams.get("topicId");
   const candidateId = searchParams.get("candidateId");
 
-  const { answerIdea, topics, ideas } = useAppContext();
+  const { topics, ideas, answerIdea } = useAppContext();
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [dragX, setDragX] = useState(0);
@@ -116,9 +116,9 @@ const TopicSwipePage = () => {
     // Swipe horizontal para responder
     if (Math.abs(dragX) > threshold) {
       if (dragX > 0) {
-        answerIdea("agree");
+        answerIdea(userId, "agree");
       } else {
-        answerIdea("disagree");
+        answerIdea(userId, "disagree");
       }
       setCurrentIndex(prev => prev + 1);
     }

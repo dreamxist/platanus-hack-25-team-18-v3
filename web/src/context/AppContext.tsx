@@ -8,7 +8,6 @@ import {
 } from "react";
 import { UserAnswer, Idea, Candidate, getTopCandidate } from "@/data/mockData";
 import {
-  fetchOpinions,
   saveAnswer,
   getUserAnswers,
   getUserTopicIds,
@@ -16,7 +15,9 @@ import {
   getNextQuestion,
   getOpinionFromQuestionId,
   QuestionResponse,
-  submitAnswer,
+  submitAnswer as submitAnswerToEdgeFunction,
+  getMatches,
+  MatchesResponse,
 } from "@/services/opinionsService";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -37,13 +38,14 @@ interface AppContextType {
   error: string | null;
   userId: string | null;
   setTopics: (topics: Topic[]) => void;
-  answerIdea: (answer: "agree" | "disagree") => Promise<void>;
   resetApp: () => void;
   getCurrentIdea: () => Idea | null;
   getProgress: () => { current: number; total: number };
   shouldShowMatch: () => boolean;
   markMatchShown: () => void;
   loadOpinions: (topicIds?: number[], userId?: string) => Promise<void>;
+  answerIdea: (userId: string, answer: 'agree' | 'disagree') => Promise<void>;
+  loadMatches: (userId: string) => Promise<MatchesResponse>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -109,128 +111,88 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setHasShownImminentMatch(false);
 
       try {
-        // If userId is provided, use Edge Function to fetch questions
-        if (userId) {
-          // Pre-fetch 15 questions for smooth swiping
-          const preFetchCount = 15;
-          const questions: Array<{
-            question: QuestionResponse;
-            opinion: OpinionWithDetails | null;
-          }> = [];
+        // Use Edge Function to fetch questions
+        // Pre-fetch 3 questions for smooth swiping
+        const preFetchCount = 3;
+        const questions: Array<{
+          question: QuestionResponse;
+          opinion: OpinionWithDetails | null;
+        }> = [];
 
-          console.log(
-            `AppContext - Pre-fetching ${preFetchCount} questions...`
+        console.log(
+          `AppContext - Pre-fetching ${preFetchCount} questions...`
+        );
+        for (let i = 0; i < preFetchCount; i++) {
+          const question = await getNextQuestion(userId);
+          if (!question) {
+            console.log(`AppContext - No more questions at index ${i}`);
+            // No more questions available
+            break;
+          }
+
+          // Get opinion details to get candidate and topic info
+          const opinion = await getOpinionFromQuestionId(
+            question.question_id
           );
-          for (let i = 0; i < preFetchCount; i++) {
-            const question = await getNextQuestion(userId);
-            if (!question) {
-              console.log(`AppContext - No more questions at index ${i}`);
-              // No more questions available
-              break;
-            }
+          questions.push({ question, opinion });
+        }
+        console.log(`AppContext - Pre-fetched ${questions.length} questions`);
 
-            // Get opinion details to get candidate and topic info
-            const opinion = await getOpinionFromQuestionId(
+        if (questions.length === 0) {
+          setError(
+            "No hay más preguntas disponibles para los temas seleccionados."
+          );
+          setIsLoading(false);
+          return;
+        }
+
+        // Transform questions to Ideas
+        const transformedIdeas: Idea[] = [];
+        const uniqueCandidates = new Map<number, Candidate>();
+
+        for (const { question, opinion } of questions) {
+          if (!opinion) {
+            console.warn(
+              "Could not fetch opinion details for question:",
               question.question_id
             );
-            questions.push({ question, opinion });
-          }
-          console.log(`AppContext - Pre-fetched ${questions.length} questions`);
-
-          if (questions.length === 0) {
-            setError(
-              "No hay más preguntas disponibles para los temas seleccionados."
-            );
-            setIsLoading(false);
-            return;
+            continue;
           }
 
-          // Transform questions to Ideas
-          const transformedIdeas: Idea[] = [];
-          const uniqueCandidates = new Map<number, Candidate>();
-
-          for (const { question, opinion } of questions) {
-            if (!opinion) {
-              console.warn(
-                "Could not fetch opinion details for question:",
-                question.question_id
-              );
-              continue;
-            }
-
-            // Extract opinion_id from question_id (format: "q_123")
-            const opinionIdMatch = question.question_id.match(/^q_(\d+)$/);
-            if (!opinionIdMatch) {
-              console.warn("Invalid question_id format:", question.question_id);
-              continue;
-            }
-
-            const opinionId = parseInt(opinionIdMatch[1], 10);
-
-            transformedIdeas.push({
-              id: opinionId,
-              candidateId: opinion.candidate_id,
-              text: question.statement,
-              topicId: opinion.topic_id,
-              topicName: opinion.topic.name,
-              emoji: opinion.topic.emoji,
-            });
-
-            // Track unique candidates
-            if (!uniqueCandidates.has(opinion.candidate.id)) {
-              uniqueCandidates.set(opinion.candidate.id, {
-                id: opinion.candidate.id,
-                name: opinion.candidate.name,
-                partyName: opinion.candidate.political_party,
-                shortLabel: opinion.candidate.name,
-                avatarUrl: opinion.candidate.image,
-                color: "hsl(270, 65%, 55%)",
-                age: opinion.candidate.age,
-              });
-            }
+          // Extract opinion_id from question_id (format: "q_123")
+          const opinionIdMatch = question.question_id.match(/^q_(\d+)$/);
+          if (!opinionIdMatch) {
+            console.warn("Invalid question_id format:", question.question_id);
+            continue;
           }
 
-          setIdeas(transformedIdeas);
-          setCandidates(Array.from(uniqueCandidates.values()));
-        } else {
-          // Fall back to old method when no userId provided
-          const opinionsData = await fetchOpinions(topicIds);
-          console.log("AppContext - Fetched opinions:", opinionsData.length);
+          const opinionId = parseInt(opinionIdMatch[1], 10);
 
-          // Transform OpinionWithDetails to Idea format
-          const transformedIdeas: Idea[] = opinionsData.map((opinion) => ({
-            id: opinion.id,
+          transformedIdeas.push({
+            id: opinionId,
             candidateId: opinion.candidate_id,
-            text: opinion.text,
+            text: question.statement,
             topicId: opinion.topic_id,
             topicName: opinion.topic.name,
             emoji: opinion.topic.emoji,
-          }));
-
-          console.log(
-            "AppContext - Transformed ideas:",
-            transformedIdeas.length
-          );
-          setIdeas(transformedIdeas);
-
-          // Extract unique candidates
-          const uniqueCandidates = new Map<number, Candidate>();
-          opinionsData.forEach((opinion) => {
-            if (!uniqueCandidates.has(opinion.candidate.id)) {
-              uniqueCandidates.set(opinion.candidate.id, {
-                id: opinion.candidate.id,
-                name: opinion.candidate.name,
-                partyName: opinion.candidate.political_party,
-                shortLabel: opinion.candidate.name,
-                avatarUrl: opinion.candidate.image,
-                color: "hsl(270, 65%, 55%)", // Default color
-                age: opinion.candidate.age,
-              });
-            }
           });
 
-          setCandidates(Array.from(uniqueCandidates.values()));
+          // Track unique candidates
+          if (!uniqueCandidates.has(opinion.candidate.id)) {
+            uniqueCandidates.set(opinion.candidate.id, {
+              id: opinion.candidate.id,
+              name: opinion.candidate.name,
+              partyName: opinion.candidate.political_party,
+              shortLabel: opinion.candidate.name,
+              avatarUrl: opinion.candidate.image,
+              color: "hsl(270, 65%, 55%)",
+              age: opinion.candidate.age,
+            });
+          }
         }
+
+        setIdeas(transformedIdeas);
+        setCandidates(Array.from(uniqueCandidates.values()));
       } catch (err) {
         console.error("Error loading opinions:", err);
         setError("Error al cargar las opiniones. Por favor, intenta de nuevo.");
@@ -241,52 +203,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     },
     [isLoadingOpinions]
   );
-
-  const answerIdea = async (answer: "agree" | "disagree") => {
-    const currentIdea = ideas[currentIdeaIndex];
-    if (!currentIdea || !userId) {
-      console.log("AppContext - answerIdea: missing currentIdea or userId");
-      return;
-    }
-
-    const questionId = `q_${currentIdea.id}`;
-    console.log(`AppContext - answerIdea: ${questionId} → ${answer}`);
-
-    const newAnswer: UserAnswer = {
-      opinionId: currentIdea.id,
-      candidateId: currentIdea.candidateId,
-      answer,
-    };
-
-    // Save to state immediately for UI responsiveness
-    setAnswers((prev) => [...prev, newAnswer]);
-    setCurrentIdeaIndex((prev) => prev + 1);
-
-    // Save to database using Edge Function
-    try {
-      console.log(`AppContext - Submitting answer to Edge Function...`);
-      const response = await submitAnswer(
-        userId,
-        questionId,
-        answer === "agree"
-      );
-      console.log(`AppContext - Answer submitted successfully:`, response);
-
-      // Handle strong match flag from response if needed
-      if (response.has_strong_match) {
-        console.log(`AppContext - Strong match detected!`);
-      }
-    } catch (err) {
-      console.error("AppContext - Error submitting answer:", err);
-      // Fallback to old method if Edge Function fails
-      try {
-        console.log(`AppContext - Falling back to saveAnswer...`);
-        await saveAnswer(userId, currentIdea.id, answer === "agree");
-      } catch (fallbackErr) {
-        console.error("AppContext - Error in fallback save:", fallbackErr);
-      }
-    }
-  };
 
   const resetApp = () => {
     setCurrentIdeaIndex(0);
@@ -316,6 +232,94 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setHasShownImminentMatch(true);
   };
 
+  const answerIdea = useCallback(
+    async (userId: string, answer: "agree" | "disagree") => {
+      const currentIdea = ideas[currentIdeaIndex];
+      console.log(
+        "debug",
+        "userId",
+        userId,
+        "currentIdea",
+        currentIdea,
+        "ideas"
+      );
+
+      if (!currentIdea || !userId) return;
+
+      // Extract question_id from opinion_id (format: "q_123")
+      const questionId = `q_${currentIdea.id}`;
+
+      const newAnswer: UserAnswer = {
+        opinionId: currentIdea.id,
+        candidateId: currentIdea.candidateId,
+        answer,
+      };
+
+      // Update state immediately for UI responsiveness
+      setAnswers((prev) => [...prev, newAnswer]);
+      setCurrentIdeaIndex((prev) => prev + 1);
+
+      // Submit answer to Edge Function (which also saves to DB and updates scores)
+      try {
+        const response = await submitAnswerToEdgeFunction(
+          userId,
+          questionId,
+          answer === "agree"
+        );
+
+        // Handle strong match flag from response
+        if (response.has_strong_match) {
+          // The shouldShowMatch logic will handle this
+        }
+
+        // Pre-fetch next question if we're running low on questions
+        if (ideas.length - (currentIdeaIndex + 1) < 5) {
+          // Pre-fetch more questions in the background
+          const nextQuestion = await getNextQuestion(userId);
+          if (nextQuestion) {
+            const opinion = await getOpinionFromQuestionId(
+              nextQuestion.question_id
+            );
+            if (opinion) {
+              const opinionIdMatch = nextQuestion.question_id.match(/^q_(\d+)$/);
+              if (opinionIdMatch) {
+                const opinionId = parseInt(opinionIdMatch[1], 10);
+                const newIdea: Idea = {
+                  id: opinionId,
+                  candidateId: opinion.candidate_id,
+                  text: nextQuestion.statement,
+                  topicId: opinion.topic_id,
+                  topicName: opinion.topic.name,
+                  emoji: opinion.topic.emoji,
+                };
+                setIdeas((prev) => [...prev, newIdea]);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error submitting answer:", err);
+        // Fallback to old save method if Edge Function fails
+        try {
+          await saveAnswer(userId, currentIdea.id, answer === "agree");
+        } catch (fallbackErr) {
+          console.error("Error in fallback save:", fallbackErr);
+        }
+      }
+    },
+    [ideas, currentIdeaIndex]
+  );
+
+  const loadMatches = useCallback(async (userId: string) => {
+    try {
+      const matches = await getMatches(userId);
+      return matches;
+    } catch (err) {
+      console.error("Error loading matches:", err);
+      throw err;
+    }
+  }, []);
+
   return (
     <AppContext.Provider
       value={{
@@ -329,13 +333,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         error,
         userId,
         setTopics,
-        answerIdea,
         resetApp,
         getCurrentIdea,
         getProgress,
         shouldShowMatch,
         markMatchShown,
         loadOpinions,
+        answerIdea,
+        loadMatches,
       }}
     >
       {children}
