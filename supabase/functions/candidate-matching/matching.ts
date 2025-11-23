@@ -1,5 +1,4 @@
 // Matching utilities using pre-calculated embeddings from database
-import type { Candidate } from "./types.ts";
 import { UserManager } from "./user-manager.ts";
 
 /**
@@ -40,7 +39,8 @@ export function calculateCosineSimilarity(
 export async function matchByTopic(
   userResponseEmbedding: number[],
   topic: string,
-  userManager: UserManager
+  userManager: UserManager,
+  agree: boolean
 ): Promise<Array<{ candidate_id: number; score: number }>> {
   // Get opinions with embeddings for this topic from database
   const opinions = await userManager.getOpinionsForTopics([topic]);
@@ -65,16 +65,8 @@ export async function matchByTopic(
     { candidate_id: number; similarities: number[] }
   > = {};
 
-  console.log(
-    `[matchByTopic] Found ${opinionsWithEmbeddings.length} opinions with embeddings for topic: ${topic}`
-  );
-  console.log(
-    `[matchByTopic] User embedding dimensions: ${userResponseEmbedding.length}`
-  );
-
   for (const opinion of opinionsWithEmbeddings) {
     if (!opinion.embedding) continue;
-
     // Parse embedding if it's a string
     let opinionEmbedding: number[];
     if (typeof opinion.embedding === "string") {
@@ -109,10 +101,13 @@ export async function matchByTopic(
 
     // Calculate similarity between user response and opinion embedding
     try {
-      const similarity = calculateCosineSimilarity(
+      let similarity = calculateCosineSimilarity(
         userResponseEmbedding,
         opinionEmbedding
       );
+      if (!agree) {
+        similarity = 1 - similarity;
+      }
       candidateSimilarities[opinion.candidate_id].similarities.push(similarity);
     } catch (e) {
       console.warn(

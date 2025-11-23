@@ -118,39 +118,8 @@ export async function getUserTopicIds(userId: string): Promise<number[]> {
  * Used to get candidate and topic info for questions from Edge Function
  */
 export async function getOpinionFromQuestionId(
-  questionId: string | number
+  questionId: number
 ): Promise<OpinionWithDetails | null> {
-  console.log('[getOpinionFromQuestionId] Received questionId:', questionId);
-  console.log('[getOpinionFromQuestionId] questionId type:', typeof questionId);
-  console.log('[getOpinionFromQuestionId] questionId value:', JSON.stringify(questionId));
-
-  // Extract opinion_id from question_id
-  // Handle multiple formats: number (41), "q_41", or "41"
-  let opinionId: number;
-
-  if (typeof questionId === 'number') {
-    // Already a number, use directly
-    opinionId = questionId;
-  } else if (typeof questionId === 'string') {
-    // Try to match "q_123" format first
-    const match = questionId.match(/^q_(\d+)$/);
-    if (match) {
-      opinionId = parseInt(match[1], 10);
-    } else {
-      // Try to parse as number directly
-      opinionId = parseInt(questionId, 10);
-      if (isNaN(opinionId)) {
-        console.error("[getOpinionFromQuestionId] Invalid question_id format:", questionId);
-        console.error("[getOpinionFromQuestionId] Expected format: number, 'q_123', or '123', got:", questionId);
-        return null;
-      }
-    }
-  } else {
-    console.error("[getOpinionFromQuestionId] Unexpected questionId type:", typeof questionId, questionId);
-    return null;
-  }
-
-  console.log('[getOpinionFromQuestionId] Extracted opinionId:', opinionId);
 
   const { data, error } = await supabase
     .from("Opinions")
@@ -174,7 +143,7 @@ export async function getOpinionFromQuestionId(
       )
     `
     )
-    .eq("id", opinionId)
+    .eq("id", questionId)
     .single();
 
   if (error || !data) {
