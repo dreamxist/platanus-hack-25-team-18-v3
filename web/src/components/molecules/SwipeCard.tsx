@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Idea } from "@/data/mockData";
 import { TopicTag } from "@/components/atoms/TopicTag";
 import { cn } from "@/lib/utils";
@@ -14,7 +15,7 @@ interface SwipeCardProps {
   showInteractionIcons?: boolean;
 }
 
-export const SwipeCard = ({ idea, className, swipeDirection, onLike, onDislike, showInteractionIcons = true }: SwipeCardProps) => {
+export const SwipeCard = memo(({ idea, className, swipeDirection, onLike, onDislike, showInteractionIcons = true }: SwipeCardProps) => {
   return (
     <div
       className="relative w-full max-w-lg mx-auto select-none"
@@ -149,4 +150,7 @@ export const SwipeCard = ({ idea, className, swipeDirection, onLike, onDislike, 
       </motion.div>
     </div>
   );
-};
+});
+
+SwipeCard.displayName = "SwipeCard";
+
