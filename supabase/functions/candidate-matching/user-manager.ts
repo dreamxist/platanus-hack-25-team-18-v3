@@ -223,7 +223,7 @@ export class UserManager {
     topic: string;
     statement: string;
   } | null> {
-    // 1. Get topic IDs from UserTopics
+    // 1. User topics
     const { data: userTopicsData, error: topicsError } = await this.supabase
       .from("UserTopics")
       .select("topic_id")
@@ -239,9 +239,9 @@ export class UserManager {
       return null;
     }
   
-    const topicIds = userTopicsData.map((ut) => ut.topic_id as number);
+    const allTopicIds = userTopicsData.map((ut) => ut.topic_id as number);
   
-    // 2. Get IDs of opinions already answered by the user
+    // 2. Answers of the user
     const { data: answeredData, error: answeredError } = await this.supabase
       .from("Answers")
       .select("opinion_id")
@@ -258,14 +258,14 @@ export class UserManager {
     const answeredOpinionIds =
       answeredData?.map((a) => a.opinion_id as number) ?? [];
   
-    // 3. Fetch embeddings for answered opinions (these are our "chosen points")
+    // 3. Embeddings of answered opinions (for distance calc)
     let chosenEmbeddings: number[][] = [];
   
     if (answeredOpinionIds.length > 0) {
       const { data: answeredOpinions, error: answeredOpinionsError } =
         await this.supabase
           .from("Opinions")
-          .select("id, embedding")
+          .select("id, embedding, topic_id")
           .in("id", answeredOpinionIds);
   
       if (answeredOpinionsError) {
@@ -280,12 +280,36 @@ export class UserManager {
         answeredOpinions
           ?.map((o) => o.embedding as number[] | null)
           .filter((e): e is number[] => Array.isArray(e)) ?? [];
+  
+      // 4. Topics that already have at least one answer
+      const answeredTopicSet = new Set<number>(
+        answeredOpinions?.map((o) => o.topic_id as number) ?? []
+      );
+  
+      // Topics selected by the user that still have zero answers
+      const unansweredTopics = allTopicIds.filter(
+        (t) => !answeredTopicSet.has(t)
+      );
+  
+      // If there are topics with no answers yet, we restrict selection to those.
+      // Otherwise we use all selected topics.
+      var topicIdsForThisPick =
+        unansweredTopics.length > 0 ? unansweredTopics : allTopicIds;
+  
+      console.log(
+        `[getNextRandomQuestion] Topics with answers: ${answeredTopicSet.size}, ` +
+          `topics without answers: ${unansweredTopics.length}, ` +
+          `using ${topicIdsForThisPick.length} topics for selection`
+      );
+    } else {
+      // No answers yet: all topics are "unanswered"
+      var topicIdsForThisPick = allTopicIds;
+      console.log(
+        "[getNextRandomQuestion] User has no answers yet, using all topics"
+      );
     }
   
-    // 4. Fetch candidate opinions:
-    //    - same topics as user
-    //    - not answered yet
-    //    - with embeddings + topic name
+    // 5. Fetch candidate opinions for the chosen topics and not yet answered
     let opinionsQuery = this.supabase
       .from("Opinions")
       .select(
@@ -297,16 +321,12 @@ export class UserManager {
           Topics!inner(name)
         `
       )
-      .in("topic_id", topicIds);
-
-    console.log(`[getNextRandomQuestion] Opinions query before NOT IN filter: ${JSON.stringify(opinionsQuery)}`);
+      .in("topic_id", topicIdsForThisPick);
   
-    // Only add NOT IN filter if we actually have answered IDs
     if (answeredOpinionIds.length > 0) {
-      opinionsQuery = opinionsQuery.not("id", "in", `(${answeredOpinionIds.join(",")})`);
+      const ids = answeredOpinionIds.join(",");
+      opinionsQuery = opinionsQuery.not("id", "in", `(${ids})`);
     }
-
-    console.log(`[getNextRandomQuestion] Opinions query after NOT IN filter: ${JSON.stringify(opinionsQuery)}`);
   
     const { data: opinions, error: opinionsError } = await opinionsQuery;
   
@@ -320,31 +340,22 @@ export class UserManager {
       return null;
     }
   
-    // Filter out opinions without embedding (just in case)
     const candidates = (opinions as any as OpinionWithEmbedding[]).filter(
       (op) => Array.isArray(op.embedding) && op.embedding.length > 0
     );
   
-    if (candidates.length === 0) {
-      console.log(
-        "[getNextRandomQuestion] No opinions with embeddings available, falling back to random from all opinions"
-      );
-    }
-  
     let selectedOpinion: OpinionWithEmbedding;
   
     if (chosenEmbeddings.length === 0 || candidates.length === 0) {
-      // No previous answers or no embedded candidates -> fallback to simple random
       const pool =
         candidates.length > 0
           ? candidates
           : (opinions as any as OpinionWithEmbedding[]);
       selectedOpinion = pool[Math.floor(Math.random() * pool.length)];
       console.log(
-        `[getNextRandomQuestion] Using random selection (no answered embeddings yet)`
+        `[getNextRandomQuestion] Using random selection (no answered embeddings or no embedded candidates)`
       );
     } else {
-      // 5. Use farthest-point strategy
       selectedOpinion = pickFarthestOpinion(candidates, chosenEmbeddings);
       console.log(
         `[getNextRandomQuestion] Selected opinion ${selectedOpinion.id} using farthest-point strategy among ${candidates.length} candidates`
