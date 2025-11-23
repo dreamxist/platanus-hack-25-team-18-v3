@@ -261,39 +261,30 @@ const RevealPage = () => {
           <div className="flex-1 flex flex-col items-center justify-end px-6 pb-14 relative z-20">
             {/* Centered vertical layout */}
             <div className="w-full max-w-2xl flex flex-col items-center mb-6">
-              {/* Match percentage - centered and prominent */}
-              <div className="mb-4 animate-scale-in">
-                <h2 className="text-[72px] md:text-[120px] font-bold text-foreground leading-none drop-shadow-lg text-center">
-                  {overallScore}%
-                </h2>
-              </div>
+              {/* White background container - positioned behind text */}
+              <div className="relative w-full flex flex-col items-center">
+                {/* White backdrop - always behind the text with responsive sizing */}
+                <div className="absolute inset-0 -mx-4 -my-6 md:-mx-8 md:-my-8 bg-white/95 backdrop-blur-sm rounded-3xl shadow-xl z-0" />
 
-              {/* Name and party - centered below percentage */}
-              <div className="flex flex-col items-center mb-4 text-foreground">
-                <h3 className="text-2xl md:text-3xl font-bold mb-1 drop-shadow-md text-center">
-                  {topCandidate.name}
-                </h3>
-                <p className="text-base md:text-lg text-muted-foreground drop-shadow-sm text-center">
-                  {topCandidate.partyName}
-                </p>
-              </div>
+                {/* Content - on top of white background */}
+                <div className="relative z-10 w-full flex flex-col items-center py-6 px-4 md:py-8 md:px-8">
+                  {/* Match percentage - centered and prominent */}
+                  <div className="mb-4 animate-scale-in">
+                    <h2 className="text-[72px] md:text-[120px] font-bold text-foreground leading-none text-center">
+                      {overallScore}%
+                    </h2>
+                  </div>
 
-              {/* Topic badges - centered below name */}
-              <div className="flex flex-row flex-wrap justify-center gap-2">
-                {matchedTopics.slice(0, 3).map(([topic, score]) => {
-                  let bgColor = "bg-red-500";
-                  if (score >= 70) bgColor = "bg-emerald-500";
-                  else if (score >= 50) bgColor = "bg-amber-500";
-                  
-                  return (
-                    <span
-                      key={topic}
-                      className={`px-3 py-1.5 ${bgColor} text-white text-sm font-semibold rounded-full whitespace-nowrap drop-shadow-md`}
-                    >
-                      {topic}
-                    </span>
-                  );
-                })}
+                  {/* Name and party - centered below percentage */}
+                  <div className="flex flex-col items-center mb-2 text-foreground">
+                    <h3 className="text-2xl md:text-3xl font-bold mb-1 text-center">
+                      {topCandidate.name}
+                    </h3>
+                    <p className="text-base md:text-lg text-muted-foreground text-center">
+                      {topCandidate.partyName}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
