@@ -80,7 +80,7 @@ const LandingPage = () => {
           className="text-lg md:text-xl text-muted-foreground mb-12 leading-relaxed"
           variants={fadeInUp}
         >
-          Hazle "swipe" a los temas que te importan y encuentra el candidato que mejor se alinea con tus ideas
+          Hazle "swipe" a las perspectivas que te importan y encuentra el candidato que mejor se alinea con tus ideas
         </motion.p>
 
         {/* CTA Button */}
@@ -90,7 +90,7 @@ const LandingPage = () => {
             onClick={handleStart}
             className="text-lg px-8 py-4 h-auto group shadow-lg hover:shadow-xl transition-shadow"
           >
-            Comenzar ahora
+            Descubrir
             <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </Button>
         </motion.div>
@@ -102,8 +102,8 @@ const LandingPage = () => {
           custom={staggerChildren.slow}
         >
           <motion.div variants={fadeInUp} className="text-center">
-            <div className="text-3xl font-bold text-primary mb-2">10+</div>
-            <div className="text-sm text-muted-foreground">Temas políticos</div>
+            <div className="text-3xl font-bold text-primary mb-2">+100</div>
+            <div className="text-sm text-muted-foreground">Perspectivas por candidato</div>
           </motion.div>
           <motion.div variants={fadeInUp} className="text-center">
             <div className="text-3xl font-bold text-primary mb-2">100%</div>
