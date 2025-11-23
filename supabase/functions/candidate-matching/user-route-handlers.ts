@@ -149,7 +149,7 @@ async function handlePostAnswer({
   await scoringSystem.updateScoresFromAnswer(updatedUserProfile, answer);
 
   let hasStrongMatch = false;
-  if (updatedUserProfile.answers.length >= 10) {
+  if (updatedUserProfile.answers.length >= 5) {
     hasStrongMatch = await scoringSystem.hasStrongMatch(
       updatedUserProfile,
       60.0
