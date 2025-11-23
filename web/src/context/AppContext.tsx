@@ -151,6 +151,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const uniqueCandidates = new Map<number, Candidate>();
 
         for (const { question, opinion } of questions) {
+          console.log('debug', question, opinion)
           if (!opinion) {
             console.warn(
               "Could not fetch opinion details for question:",
