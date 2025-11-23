@@ -166,9 +166,9 @@ const RevealPage = () => {
         </div>
 
         {/* Content for Share Image - Vertical layout */}
-        <div className="relative z-10 h-full flex flex-col pt-48">
+        <div className="absolute bottom-10 z-10 h-full flex flex-col pt-6">
           {/* Top section - Candidate Image */}
-          <div className="h-[55%] flex items-center justify-center relative">
+          <div className="h-[60%] flex items-center justify-center relative">
             <img 
               src={candidateImage}
               alt={topCandidate.name}
@@ -233,33 +233,32 @@ const RevealPage = () => {
 
         <div className="absolute inset-0 bg-gradient-to-b from-background/85 via-background/70 to-background/95" />
 
-        {/* Candidate image removed - now shown as circular avatar in content */}
-
         {/* Gradiente inferior: más pequeño en desktop para no tapar la foto */}
-        <div className="absolute bottom-0 left-0 right-0 h-[50%] md:h-[40%] bg-gradient-to-t from-background from-60% via-background/95 to-background/80" />
-        
+        <div className="absolute bottom-0 left-0 right-0 h-[42%] md:h-[40%] bg-gradient-to-t from-background from-60% via-background/95 to-background/80" />
+
         {/* Gradiente superior solo para móvil */}
-        <div className="absolute top-0 left-0 right-0 h-[40%] bg-gradient-to-b from-background/90 via-background/70 to-transparent md:hidden" />
+        <div className="h-[60%] bg-gradient-to-b from-background/90 via-background/70 to-transparent md:hidden" />
       </div>
 
       {/* Scrollable Content */}
       <div className="relative z-10 flex flex-col w-full">
         {/* Hero Section (Full Height) */}
-        <div className="h-[100dvh] w-full flex flex-col">
-          <div className="flex-1 flex flex-col items-center justify-end px-6 pb-24 relative z-20">
+        <div className="h-[100dvh] w-full flex flex-col relative">
+          {/* Candidate image as background - moves with scroll */}
+          <motion.div
+            className="absolute inset-0 bg-contain bg-center bg-no-repeat"
+            style={{
+              backgroundImage: `url('${candidateImage}')`,
+              backgroundPosition: 'center 8%',
+            }}
+            initial={{ scale: 1.1, opacity: 0 }}
+            animate={{ scale: 1, opacity: 0.9 }}
+            transition={{ ...spring.smooth, duration: 1.2, delay: 0.2 }}
+          />
+
+          <div className="flex-1 flex flex-col items-center justify-end px-6 pb-14 relative z-20">
             {/* Centered vertical layout */}
             <div className="w-full max-w-2xl flex flex-col items-center mb-6">
-              {/* Candidate circular avatar */}
-              <div className="mb-6 animate-scale-in">
-                <div className="relative">
-                  <img
-                    src={candidateImage}
-                    alt={topCandidate.name}
-                    className="w-44 h-44 md:w-96 md:h-96 rounded-full object-cover border-4 border-background shadow-2xl"
-                  />
-                </div>
-              </div>
-
               {/* Match percentage - centered and prominent */}
               <div className="mb-4 animate-scale-in">
                 <h2 className="text-[72px] md:text-[120px] font-bold text-foreground leading-none drop-shadow-lg text-center">
@@ -315,7 +314,7 @@ const RevealPage = () => {
         </div>
 
         {/* Metrics Section */}
-        <div className="w-full bg-background/95 backdrop-blur-sm rounded-t-[32px] -mt-6 pt-10 pb-20 px-6 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
+        <div className="w-full bg-background/95 backdrop-blur-sm rounded-t-[48px] -mt-16 pt-16 pb-20 px-6 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
           <div className="max-w-2xl mx-auto space-y-10">
             
             {/* Matches Section */}
