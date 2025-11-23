@@ -2,14 +2,12 @@ import {
   createContext,
   useContext,
   useState,
-  useEffect,
   useCallback,
   ReactNode,
 } from "react";
 import { UserAnswer, Idea, Candidate, getTopCandidate } from "@/data/mockData";
 import {
   saveAnswer,
-  getUserAnswers,
   getUserTopicIds,
   OpinionWithDetails,
   getNextQuestion,
@@ -19,7 +17,6 @@ import {
   getMatches,
   MatchesResponse,
 } from "@/services/opinionsService";
-import { supabase } from "@/integrations/supabase/client";
 
 interface Topic {
   id: number;
@@ -36,7 +33,6 @@ interface AppContextType {
   topics: Topic[];
   isLoading: boolean;
   error: string | null;
-  userId: string | null;
   setTopics: (topics: Topic[]) => void;
   resetApp: () => void;
   getCurrentIdea: () => Idea | null;
@@ -59,33 +55,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
   const [isLoadingOpinions, setIsLoadingOpinions] = useState(false);
-
-  // Get current user on mount
-  useEffect(() => {
-    const initUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-        // Load previous answers if any
-        try {
-          const previousAnswers = await getUserAnswers(user.id);
-          const formattedAnswers: UserAnswer[] = previousAnswers.map((a) => ({
-            opinionId: a.opinion_id,
-            candidateId: a.opinion_id, // Will be updated when we load opinions
-            answer: a.choice ? "agree" : "disagree",
-          }));
-          setAnswers(formattedAnswers);
-        } catch (err) {
-          console.error("Error loading previous answers:", err);
-        }
-      }
-    };
-    initUser();
-  }, []);
 
   const loadOpinions = useCallback(
     async (topicIds?: number[], userId?: string) => {
@@ -124,6 +94,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         );
         for (let i = 0; i < preFetchCount; i++) {
           const question = await getNextQuestion(userId);
+          console.log(`AppContext - Question ${i}:`, question);
+          console.log(`AppContext - Question ID type:`, typeof question?.question_id);
+
           if (!question) {
             console.log(`AppContext - No more questions at index ${i}`);
             // No more questions available
@@ -134,6 +107,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           const opinion = await getOpinionFromQuestionId(
             question.question_id
           );
+          console.log(`AppContext - Opinion for question ${question.question_id}:`, opinion);
           questions.push({ question, opinion });
         }
         console.log(`AppContext - Pre-fetched ${questions.length} questions`);
@@ -151,6 +125,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const uniqueCandidates = new Map<number, Candidate>();
 
         for (const { question, opinion } of questions) {
+          console.log('debug', question, opinion)
           if (!opinion) {
             console.warn(
               "Could not fetch opinion details for question:",
@@ -159,14 +134,30 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             continue;
           }
 
-          // Extract opinion_id from question_id (format: "q_123")
-          const opinionIdMatch = question.question_id as number;
-          if (!opinionIdMatch) {
-            console.warn("Invalid question_id format:", question.question_id);
+          // Extract opinion_id from question_id
+          // question_id can be a number (7) or string ("q_7" or "7")
+          let opinionId: number;
+
+          if (typeof question.question_id === 'number') {
+            // Already a number, use directly
+            opinionId = question.question_id;
+          } else if (typeof question.question_id === 'string') {
+            // Try to match "q_123" format first
+            const match = question.question_id.match(/^q_(\d+)$/);
+            if (match) {
+              opinionId = parseInt(match[1], 10);
+            } else {
+              // Try to parse as number directly
+              opinionId = parseInt(question.question_id, 10);
+              if (isNaN(opinionId)) {
+                console.warn("Invalid question_id format:", question.question_id);
+                continue;
+              }
+            }
+          } else {
+            console.warn("Unexpected question_id type:", typeof question.question_id, question.question_id);
             continue;
           }
-
-          const opinionId = parseInt(opinionIdMatch, 10);
 
           transformedIdeas.push({
             id: opinionId,
@@ -194,7 +185,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setIdeas(transformedIdeas);
         setCandidates(Array.from(uniqueCandidates.values()));
       } catch (err) {
-        console.error("Error loading opinions:", err);
+        console.error("AppContext - Error loading opinions:", err);
+        console.error("AppContext - Error type:", typeof err);
+        console.error("AppContext - Error details:", err instanceof Error ? err.message : String(err));
+        console.error("AppContext - Error stack:", err instanceof Error ? err.stack : 'No stack');
         setError("Error al cargar las opiniones. Por favor, intenta de nuevo.");
       } finally {
         setIsLoading(false);
@@ -247,7 +241,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (!currentIdea || !userId) return;
 
       // Extract question_id from opinion_id (format: "q_123")
-      const questionId = `q_${currentIdea.id}`;
+      const questionId = currentIdea.id;
 
       const newAnswer: UserAnswer = {
         opinionId: currentIdea.id,
@@ -281,9 +275,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
               nextQuestion.question_id
             );
             if (opinion) {
-              const opinionIdMatch = nextQuestion.question_id;
-              if (opinionIdMatch) {
-                const opinionId = opinionIdMatch as number;
+              // Extract opinion_id from question_id (can be number or string)
+              let opinionId: number;
+
+              if (typeof nextQuestion.question_id === 'number') {
+                opinionId = nextQuestion.question_id;
+              } else if (typeof nextQuestion.question_id === 'string') {
+                const match = nextQuestion.question_id.match(/^q_(\d+)$/);
+                opinionId = match ? parseInt(match[1], 10) : parseInt(nextQuestion.question_id, 10);
+              } else {
+                console.warn("Unexpected question_id type in prefetch:", nextQuestion.question_id);
+                return;
+              }
+
+              if (!isNaN(opinionId)) {
                 const newIdea: Idea = {
                   id: opinionId,
                   candidateId: opinion.candidate_id,
@@ -331,7 +336,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         topics,
         isLoading,
         error,
-        userId,
         setTopics,
         resetApp,
         getCurrentIdea,

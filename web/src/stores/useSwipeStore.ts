@@ -171,7 +171,7 @@ export const useSwipeStore = create<SwipeState>((set, get) => ({
     if (!currentIdea || !userId) return;
 
     // Extract question_id from opinion_id (format: "q_123")
-    const questionId = `q_${currentIdea.id}`;
+    const questionId = currentIdea.id;
 
     const newAnswer: UserAnswer = {
       opinionId: currentIdea.id,
@@ -270,7 +270,7 @@ export const useSwipeStore = create<SwipeState>((set, get) => ({
   shouldShowMatch: () => {
     const { answers, hasShownImminentMatch } = get();
     // Updated to match Edge Function's 10-answer threshold
-    return answers.length >= 10 && !hasShownImminentMatch;
+    return !hasShownImminentMatch;
   },
 
   markMatchShown: () => set({ hasShownImminentMatch: true }),

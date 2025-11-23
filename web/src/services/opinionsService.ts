@@ -113,19 +113,13 @@ export async function getUserTopicIds(userId: string): Promise<number[]> {
 }
 
 /**
- * Get opinion details from question_id (format: "q_123")
+ * Get opinion details from question_id
+ * questionId can be: number (41), string "q_41", or string "41"
  * Used to get candidate and topic info for questions from Edge Function
  */
 export async function getOpinionFromQuestionId(
-  questionId: string
+  questionId: number
 ): Promise<OpinionWithDetails | null> {
-  const opinionIdMatch = questionId;
-  if (!opinionIdMatch) {
-    console.error("Invalid question_id format:", questionId);
-    return null;
-  }
-
-  const opinionId = opinionIdMatch as number;
 
   const { data, error } = await supabase
     .from("Opinions")
@@ -149,7 +143,7 @@ export async function getOpinionFromQuestionId(
       )
     `
     )
-    .eq("id", opinionId)
+    .eq("id", questionId)
     .single();
 
   if (error || !data) {
@@ -241,6 +235,9 @@ export async function getNextQuestion(
     }
 
     const data: QuestionResponse = await response.json();
+    console.log('[getNextQuestion] Received data from Edge Function:', data);
+    console.log('[getNextQuestion] question_id type:', typeof data.question_id);
+    console.log('[getNextQuestion] Raw response:', JSON.stringify(data));
     return data;
   } catch (err) {
     console.error("Error in getNextQuestion:", err);

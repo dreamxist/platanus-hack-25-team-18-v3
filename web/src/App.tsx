@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppProvider } from "./context/AppContext";
 import AppLayout from "./components/layout/AppLayout";
 import LandingPage from "./pages/LandingPage";
-import NameInputPage from "./pages/NameInputPage";
 import TopicsPage from "./pages/TopicsPage";
 import SwipePage from "./pages/SwipePage";
 import TopicSwipePage from "./pages/TopicSwipePage";

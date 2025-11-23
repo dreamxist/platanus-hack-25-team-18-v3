@@ -1,6 +1,6 @@
 {
-  "name": "MiCandidatop - Encuentra tu match político",
-  "short_name": "MiCandidatop",
+  "name": "MiCandida.top - Encuentra tu match político",
+  "short_name": "MiCandida.top",
   "description": "Descubre qué candidato presidencial se alinea con tus valores",
   "start_url": "/",
   "display": "standalone",

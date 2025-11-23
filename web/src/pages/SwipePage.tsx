@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAppContext } from "@/context/AppContext";
 import { SwipeCard } from "@/components/molecules/SwipeCard";
 import { getUserTopicIds } from "@/services/opinionsService";
+import { getCurrentUserId } from "@/services/sessionService";
 import {
   motion,
   useMotionValue,
@@ -11,17 +12,15 @@ import {
   animate,
 } from "framer-motion";
 import { spring, swipeConfig } from "@/config/animations";
-import { Loader2 } from "lucide-react";
+import { Loader2, SkipForward } from "lucide-react";
 
 const SwipePage = () => {
   console.log("SwipePage component mounted");
 
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const userId = searchParams.get("userId");
+  const userId = getCurrentUserId();
 
-  console.log("SwipePage - userId from URL:", userId);
-  console.log("SwipePage - searchParams:", searchParams.toString());
+  console.log("SwipePage - userId from localStorage:", userId);
 
   const {
     getCurrentIdea,
@@ -30,7 +29,6 @@ const SwipePage = () => {
     loadOpinions,
     isLoading,
     error,
-    userId: contextUserId,
     ideas,
     answerIdea,
   } = useAppContext();
@@ -42,38 +40,66 @@ const SwipePage = () => {
       ? ideas[currentIndex + 1]
       : null;
   const [hasInitialized, setHasInitialized] = useState(false);
-  const [swipeDirection, setSwipeDirection] = useState<"left" | "right" | null>(
+  const [swipeDirection, setSwipeDirection] = useState<"left" | "right" | "down" | null>(
     null
   );
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const isInitializingRef = useRef(false);
+  const [loadingMessage, setLoadingMessage] = useState("Hablando con los candidatos");
 
   // Framer Motion values for smooth dragging
   const x = useMotionValue(0);
+  const y = useMotionValue(0);
   const rotate = useTransform(
     x,
     [-200, 0, 200],
     [-swipeConfig.rotation, 0, swipeConfig.rotation]
   );
   const opacity = useTransform(
-    x,
-    [-200, -100, 0, 100, 200],
-    [0.5, 1, 1, 1, 0.5]
+    [x, y],
+    ([latestX, latestY]) => {
+      const totalOffset = Math.sqrt((latestX as number) ** 2 + (latestY as number) ** 2);
+      if (totalOffset > 200) return 0.5;
+      if (totalOffset > 100) return 0.8;
+      return 1;
+    }
   );
   const backgroundColor = useTransform(
-    x,
-    [-200, -50, 0, 50, 200],
-    [
-      "rgba(239, 68, 68, 0.2)", // red on left
-      "rgba(239, 68, 68, 0.05)",
-      "rgba(255, 255, 255, 0)",
-      "rgba(34, 197, 94, 0.05)",
-      "rgba(34, 197, 94, 0.2)", // green on right
-    ]
+    [x, y],
+    ([latestX, latestY]) => {
+      // Prioritize vertical movement for skip (gray)
+      if (Math.abs(latestY as number) > Math.abs(latestX as number) && (latestY as number) > 50) {
+        if ((latestY as number) > 200) return "rgba(156, 163, 175, 0.2)"; // gray
+        if ((latestY as number) > 50) return "rgba(156, 163, 175, 0.05)";
+      }
+      // Horizontal movement for like/dislike
+      if ((latestX as number) < -200) return "rgba(239, 68, 68, 0.2)"; // red on left
+      if ((latestX as number) < -50) return "rgba(239, 68, 68, 0.05)";
+      if ((latestX as number) > 200) return "rgba(34, 197, 94, 0.2)"; // green on right
+      if ((latestX as number) > 50) return "rgba(34, 197, 94, 0.05)";
+      return "rgba(255, 255, 255, 0)";
+    }
   );
 
-  console.log("SwipePage - contextUserId:", contextUserId);
+  // Loading message animation
+  useEffect(() => {
+    if (!isLoading) {
+      // Reset to first message when not loading
+      setLoadingMessage("Hablando con los candidatos");
+      return;
+    }
+
+    // Start with first message
+    setLoadingMessage("Hablando con los candidatos");
+
+    // Switch to second message after 1.5 seconds
+    const timer = setTimeout(() => {
+      setLoadingMessage("Entendiendo sus perspectivas");
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [isLoading]);
 
   // Load opinions when component mounts
   useEffect(() => {
@@ -87,27 +113,23 @@ const SwipePage = () => {
     isInitializingRef.current = true;
 
     const initializeOpinions = async () => {
-      // Use userId from URL if available, otherwise use context userId
-      const effectiveUserId = userId || contextUserId;
+      console.log("SwipePage - userId:", userId);
 
-      console.log("SwipePage - effectiveUserId:", effectiveUserId);
-
-      if (!effectiveUserId) {
-        console.log("SwipePage - No userId found, skipping initialization");
-        setHasInitialized(true);
-        isInitializingRef.current = false;
+      if (!userId) {
+        console.log("SwipePage - No userId found, redirecting to landing");
+        navigate('/');
         return;
       }
 
       try {
         // Get user's selected topics
-        const topicIds = await getUserTopicIds(effectiveUserId);
+        const topicIds = await getUserTopicIds(userId);
         console.log("SwipePage - User topics:", topicIds);
 
         // Load opinions filtered by those topics (pass userId for Edge Function)
         await loadOpinions(
           topicIds.length > 0 ? topicIds : undefined,
-          effectiveUserId
+          userId
         );
         console.log("SwipePage - Opinions loaded successfully");
       } catch (err) {
@@ -120,7 +142,7 @@ const SwipePage = () => {
 
     initializeOpinions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, contextUserId]);
+  }, [userId]);
 
   useEffect(() => {
     if (shouldShowMatch()) {
@@ -129,31 +151,55 @@ const SwipePage = () => {
       setIsTransitioning(true);
       // Navegar después de la animación
       setTimeout(() => {
-        navigate(`/match?userId=${userId}`);
+        navigate('/match');
       }, 500);
     }
-  }, [shouldShowMatch, markMatchShown, navigate, userId]);
+  }, [shouldShowMatch, markMatchShown, navigate]);
 
 
   // Update swipe direction indicator based on drag position
   useEffect(() => {
-    const unsubscribe = x.on("change", (latest) => {
-      if (!isExiting && Math.abs(latest) > 50) {
-        setSwipeDirection(latest > 0 ? "right" : "left");
-      } else if (!isExiting) {
-        setSwipeDirection(null);
+    const unsubscribeX = x.on("change", (latestX) => {
+      const latestY = y.get();
+      if (!isExiting) {
+        // Prioritize vertical movement for skip
+        if (Math.abs(latestY) > Math.abs(latestX) && latestY > 50) {
+          setSwipeDirection("down");
+        } else if (Math.abs(latestX) > 50) {
+          setSwipeDirection(latestX > 0 ? "right" : "left");
+        } else {
+          setSwipeDirection(null);
+        }
       }
     });
 
-    return () => unsubscribe();
-  }, [x, isExiting]);
+    const unsubscribeY = y.on("change", (latestY) => {
+      const latestX = x.get();
+      if (!isExiting) {
+        // Prioritize vertical movement for skip
+        if (Math.abs(latestY) > Math.abs(latestX) && latestY > 50) {
+          setSwipeDirection("down");
+        } else if (Math.abs(latestX) > 50) {
+          setSwipeDirection(latestX > 0 ? "right" : "left");
+        } else {
+          setSwipeDirection(null);
+        }
+      }
+    });
+
+    return () => {
+      unsubscribeX();
+      unsubscribeY();
+    };
+  }, [x, y, isExiting]);
 
   // Reset motion values when card changes
   useEffect(() => {
     if (currentIdea) {
       x.set(0);
+      y.set(0);
     }
-  }, [currentIdea?.id, x]);
+  }, [currentIdea?.id, x, y]);
 
   console.log(
     "SwipePage render - isLoading:",
@@ -170,7 +216,7 @@ const SwipePage = () => {
       <div className="h-screen w-full fixed inset-0 bg-gradient-to-br from-white via-blue-50 to-red-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-12 w-12 text-primary animate-spin" />
-          <div className="text-foreground text-xl">Cargando opiniones...</div>
+          <div className="text-foreground text-xl">{loadingMessage}</div>
         </div>
       </div>
     );
@@ -188,22 +234,32 @@ const SwipePage = () => {
     );
   }
 
-  const completeSwipe = async (direction: "left" | "right") => {
+  const completeSwipe = async (direction: "left" | "right" | "down") => {
     if (!currentIdea || isExiting) return;
 
     setIsExiting(true);
-    const exitDistance =
-      direction === "right"
-        ? typeof window !== "undefined"
-          ? window.innerWidth
-          : 600
-        : typeof window !== "undefined"
-        ? -window.innerWidth
-        : -600;
 
-    await animate(x, exitDistance, { duration: 0.25, ease: "easeOut" });
-    await answerIdea(userId, direction === "right" ? "agree" : "disagree");
+    if (direction === "down") {
+      // Animate down for skip
+      const exitDistance = typeof window !== "undefined" ? window.innerHeight : 800;
+      await animate(y, exitDistance, { duration: 0.25, ease: "easeOut" });
+      await answerIdea(userId, "disagree"); // Skip acts as dislike
+    } else {
+      // Animate horizontally for like/dislike
+      const exitDistance =
+        direction === "right"
+          ? typeof window !== "undefined"
+            ? window.innerWidth
+            : 600
+          : typeof window !== "undefined"
+          ? -window.innerWidth
+          : -600;
+      await animate(x, exitDistance, { duration: 0.25, ease: "easeOut" });
+      await answerIdea(userId, direction === "right" ? "agree" : "disagree");
+    }
+
     x.set(0);
+    y.set(0);
     setSwipeDirection(null);
     setIsExiting(false);
   };
@@ -215,17 +271,44 @@ const SwipePage = () => {
     const { offset, velocity } = info;
 
     // Check if velocity is high enough for a flick
-    const isFlick = Math.abs(velocity.x) > swipeConfig.velocityThreshold;
+    const isFlickX = Math.abs(velocity.x) > swipeConfig.velocityThreshold;
+    const isFlickY = Math.abs(velocity.y) > swipeConfig.velocityThreshold;
     // Check if distance is far enough
-    const isSwipe = Math.abs(offset.x) > swipeConfig.threshold;
+    const isSwipeX = Math.abs(offset.x) > swipeConfig.threshold;
+    const isSwipeY = Math.abs(offset.y) > swipeConfig.threshold;
 
-    if ((isFlick || isSwipe) && !isExiting) {
-      const direction = offset.x > 0 ? "right" : "left";
-      completeSwipe(direction);
-    } else {
-      // Snap back with spring physics
-      animate(x, 0, { type: "spring", stiffness: 500, damping: 30 });
-      setSwipeDirection(null);
+    if (!isExiting) {
+      // Prioritize vertical swipe for skip
+      if ((isFlickY || isSwipeY) && offset.y > 0 && Math.abs(offset.y) > Math.abs(offset.x)) {
+        completeSwipe("down");
+      } else if ((isFlickX || isSwipeX)) {
+        const direction = offset.x > 0 ? "right" : "left";
+        completeSwipe(direction);
+      } else {
+        // Snap back with spring physics
+        animate(x, 0, { type: "spring", stiffness: 500, damping: 30 });
+        animate(y, 0, { type: "spring", stiffness: 500, damping: 30 });
+        setSwipeDirection(null);
+      }
+    }
+  };
+
+  // Handlers for button interactions
+  const handleLike = () => {
+    if (!isExiting) {
+      completeSwipe("right");
+    }
+  };
+
+  const handleDislike = () => {
+    if (!isExiting) {
+      completeSwipe("left");
+    }
+  };
+
+  const handleSkip = () => {
+    if (!isExiting) {
+      completeSwipe("down"); // Skip animates down
     }
   };
 
@@ -238,22 +321,15 @@ const SwipePage = () => {
         <div className="h-screen w-full fixed inset-0 bg-gradient-to-br from-white via-blue-50 to-red-50 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-12 w-12 text-primary animate-spin" />
-            <div className="text-foreground text-xl">Cargando opiniones...</div>
+            <div className="text-foreground text-xl">{loadingMessage}</div>
           </div>
         </div>
       );
     }
-    // Si ya inicializó pero no hay ideas, mostrar mensaje
-    return (
-      <div className="h-screen w-full fixed inset-0 bg-gradient-to-br from-white via-blue-50 to-red-50 flex items-center justify-center px-4">
-        <div className="text-foreground text-center">
-          <div className="text-xl mb-4">No hay más preguntas</div>
-          <div className="text-sm opacity-80">
-            Has completado todas las preguntas disponibles.
-          </div>
-        </div>
-      </div>
-    );
+    // Si ya inicializó pero no hay ideas, redirigir a topics
+    console.log("SwipePage - No questions available, redirecting to topics");
+    navigate('/topics', { state: { noQuestions: true } });
+    return null;
   }
 
   return (
@@ -270,7 +346,7 @@ const SwipePage = () => {
       />
 
       <div
-        className={`h-full w-full flex items-center justify-center px-4 sm:px-6 relative z-10 ${
+        className={`h-full w-full flex flex-col items-center justify-center px-4 sm:px-6 relative z-10 ${
           isTransitioning ? "animate-slide-up-exit" : ""
         }`}
       >
@@ -285,7 +361,7 @@ const SwipePage = () => {
                 zIndex: 0,
               }}
             >
-              <SwipeCard idea={nextIdea} swipeDirection={null} />
+              <SwipeCard idea={nextIdea} swipeDirection={null} showInteractionIcons={false} />
             </div>
           )}
 
@@ -295,19 +371,44 @@ const SwipePage = () => {
             className="relative cursor-grab active:cursor-grabbing"
             style={{
               x,
+              y,
               rotate,
               opacity,
               zIndex: 1,
             }}
-            drag={isExiting ? false : "x"}
-            dragConstraints={{ left: 0, right: 0 }}
+            drag={isExiting ? false : true}
+            dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
             dragElastic={0.7}
             onDragEnd={handleDragEnd}
             whileTap={{ cursor: "grabbing" }}
           >
-            <SwipeCard idea={currentIdea} swipeDirection={swipeDirection} />
+            <SwipeCard
+              idea={currentIdea}
+              swipeDirection={swipeDirection}
+              onLike={handleLike}
+              onDislike={handleDislike}
+            />
           </motion.div>
         </div>
+
+        {/* Skip button - below the card */}
+        <motion.div
+          className="mt-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...spring.smooth, delay: 0.3 }}
+        >
+          <motion.button
+            onClick={handleSkip}
+            className="flex items-center gap-2 px-6 py-3 rounded-full bg-gray-400/30 backdrop-blur-md border border-gray-400/50 text-gray-600 hover:bg-gray-400/40 transition-colors"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            disabled={isExiting}
+          >
+            <SkipForward className="w-5 h-5" />
+            <span className="font-medium">Skip</span>
+          </motion.button>
+        </motion.div>
       </div>
     </motion.div>
   );

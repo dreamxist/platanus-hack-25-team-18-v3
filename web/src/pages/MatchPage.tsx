@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAppContext } from "@/context/AppContext";
 import { getTopCandidate } from "@/data/mockData";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/services/sessionService";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import { fadeInUp, scaleIn, spring, createStaggerContainer } from "@/config/animations";
@@ -16,8 +17,7 @@ interface Topic {
 
 const MatchPage = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const userId = searchParams.get("userId");
+  const userId = getCurrentUserId();
   const { answers, candidates } = useAppContext();
   const { toast } = useToast();
 
@@ -89,9 +89,9 @@ const MatchPage = () => {
   // Redirect to home if no top candidate - use useEffect to avoid rendering issues
   useEffect(() => {
     if (!topCandidate) {
-      navigate(`/?userId=${userId}`);
+      navigate('/');
     }
-  }, [topCandidate, navigate, userId]);
+  }, [topCandidate, navigate]);
 
   if (!topCandidate) {
     return null;
@@ -169,7 +169,7 @@ const MatchPage = () => {
 
           {/* Big Chat Button */}
           <motion.button
-            onClick={() => navigate(`/chat?userId=${userId}`)}
+            onClick={() => navigate('/chat')}
             className="w-full max-w-md py-4 px-8 rounded-2xl bg-primary text-primary-foreground text-lg font-semibold shadow-elevated hover:shadow-glow transition-all"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -203,7 +203,7 @@ const MatchPage = () => {
                   key={topic.id}
                   variants={fadeInUp}
                   className="relative aspect-square bg-card rounded-2xl shadow-card cursor-pointer flex flex-col items-center justify-center gap-3 p-4 border border-border/50 glass-effect"
-                  onClick={() => navigate(`/topic-swipe?userId=${userId}&topicId=${topic.id}&candidateId=${topCandidate.id}`)}
+                  onClick={() => navigate(`/topic-swipe?topicId=${topic.id}&candidateId=${topCandidate.id}`)}
                   whileHover={{ y: -4, scale: 1.03, boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.15)" }}
                   whileTap={{ scale: 0.98 }}
                   transition={spring.smooth}
