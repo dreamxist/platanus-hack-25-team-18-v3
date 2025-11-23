@@ -83,20 +83,18 @@ export class ScoringSystem {
       `[updateScoresFromAnswer] Using embedding with ${userAnswerEmbedding.length} dimensions`
     );
 
-    if (answer.agree) {
-      // User agrees: find candidates with similar opinions
-      const matches = await matchByTopic(
-        userAnswerEmbedding,
-        answer.topic,
-        this.userManager,
-        answer.agree
-      );
+    const matches = await matchByTopic(
+      userAnswerEmbedding,
+      answer.topic,
+      this.userManager,
+      answer.agree
+    );
 
-      for (const match of matches) {
-        scoreUpdates[match.candidate_id] =
-          (scoreUpdates[match.candidate_id] || 0) + match.score;
-      }
+    for (const match of matches) {
+      scoreUpdates[match.candidate_id] =
+        (scoreUpdates[match.candidate_id] || 0) + match.score;
     }
+
 
     if (Object.keys(scoreUpdates).length === 0) {
       return;
