@@ -173,13 +173,27 @@ export class UserManager {
         embedding,
         candidate_id,
         topic_id,
-        Topics(name),
-        Candidates(name, political_party)
+        Topics!inner(name),
+        Candidates!inner(name, political_party)
       `)
       .eq("id", opinionId)
       .single();
 
-    if (error || !data) {
+    if (error) {
+      console.error(`[getOpinion] Error fetching opinion ${opinionId}:`, error);
+      return null;
+    }
+
+    if (!data) {
+      console.error(`[getOpinion] No data returned for opinion ${opinionId}`);
+      return null;
+    }
+
+    if (!data.Topics || !data.Candidates) {
+      console.error(`[getOpinion] Missing relations for opinion ${opinionId}:`, {
+        hasTopics: !!data.Topics,
+        hasCandidates: !!data.Candidates
+      });
       return null;
     }
 
