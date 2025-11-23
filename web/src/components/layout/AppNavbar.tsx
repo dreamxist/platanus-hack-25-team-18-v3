@@ -11,12 +11,12 @@ const AppNavbar = () => {
         >
           <img
             src="/project-logo.png"
-            alt="MiCandida.top"
+            alt="MiCandidatop"
             className="h-10 w-10 rounded-full border border-border/60 bg-background/80 shadow-sm transition-transform duration-200 group-hover:scale-105"
             loading="lazy"
           />
           <span className="text-base font-semibold tracking-tight text-foreground transition-colors duration-200 group-hover:text-primary">
-          MiCandida.top
+          MiCandidatop
           </span>
         </Link>
       </div>
