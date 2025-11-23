@@ -166,28 +166,30 @@ const RevealPage = () => {
         </div>
 
         {/* Content for Share Image - Vertical layout */}
-        <div className="absolute bottom-10 z-10 h-full flex flex-col pt-6">
+        <div className="absolute bottom-0 z-10 h-full w-full flex flex-col pt-24">
           {/* Top section - Candidate Image */}
-          <div className="h-[60%] flex items-center justify-center relative">
+          <div className="h-[58%] flex items-center justify-center relative">
             <img 
               src={candidateImage}
               alt={topCandidate.name}
               className="candidate-share-image h-full w-auto object-contain"
               style={{ maxHeight: '100%', maxWidth: '100%' }}
             />
+            {/* Gradient overlay below candidate */}
+            <div className="absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-t from-white to-transparent" />
           </div>
 
           {/* Bottom section - Content */}
-          <div className="h-[45%] flex flex-col items-center justify-center px-16 py-8">
+          <div className="h-[45%] flex flex-col items-center justify-center px-8 pt-16 pb-8 bg-white">
             {/* Match percentage */}
-            <div className="mb-8">
+            <div className="mb-12">
               <h2 className="text-[200px] font-bold text-foreground leading-none tracking-tighter text-center">
                 {overallScore}%
               </h2>
             </div>
 
             {/* Name and party */}
-            <div className="text-center mb-10">
+            <div className="text-center mb-14">
               <h3 className="text-6xl font-bold mb-3 text-foreground">
                 {topCandidate.name}
               </h3>
@@ -197,7 +199,7 @@ const RevealPage = () => {
             </div>
 
             {/* Topic badges */}
-            <div className="flex flex-row flex-wrap justify-center gap-4 mb-10 max-w-[900px]">
+            <div className="flex flex-row flex-wrap justify-center gap-6 mb-14 max-w-[950px]">
               {matchedTopics.slice(0, 3).map(([topic]) => (
                 <span
                   key={topic}
