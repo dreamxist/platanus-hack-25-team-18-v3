@@ -113,20 +113,44 @@ export async function getUserTopicIds(userId: string): Promise<number[]> {
 }
 
 /**
- * Get opinion details from question_id (format: "q_123")
+ * Get opinion details from question_id
+ * questionId can be: number (41), string "q_41", or string "41"
  * Used to get candidate and topic info for questions from Edge Function
  */
 export async function getOpinionFromQuestionId(
-  questionId: string
+  questionId: string | number
 ): Promise<OpinionWithDetails | null> {
-  // Extract opinion_id from question_id (format: "q_123")
-  const opinionIdMatch = questionId.match(/^q_(\d+)$/);
-  if (!opinionIdMatch) {
-    console.error("Invalid question_id format:", questionId);
+  console.log('[getOpinionFromQuestionId] Received questionId:', questionId);
+  console.log('[getOpinionFromQuestionId] questionId type:', typeof questionId);
+  console.log('[getOpinionFromQuestionId] questionId value:', JSON.stringify(questionId));
+
+  // Extract opinion_id from question_id
+  // Handle multiple formats: number (41), "q_41", or "41"
+  let opinionId: number;
+
+  if (typeof questionId === 'number') {
+    // Already a number, use directly
+    opinionId = questionId;
+  } else if (typeof questionId === 'string') {
+    // Try to match "q_123" format first
+    const match = questionId.match(/^q_(\d+)$/);
+    if (match) {
+      opinionId = parseInt(match[1], 10);
+    } else {
+      // Try to parse as number directly
+      opinionId = parseInt(questionId, 10);
+      if (isNaN(opinionId)) {
+        console.error("[getOpinionFromQuestionId] Invalid question_id format:", questionId);
+        console.error("[getOpinionFromQuestionId] Expected format: number, 'q_123', or '123', got:", questionId);
+        return null;
+      }
+    }
+  } else {
+    console.error("[getOpinionFromQuestionId] Unexpected questionId type:", typeof questionId, questionId);
     return null;
   }
 
-  const opinionId = parseInt(opinionIdMatch[1], 10);
+  console.log('[getOpinionFromQuestionId] Extracted opinionId:', opinionId);
 
   const { data, error } = await supabase
     .from("Opinions")
@@ -242,6 +266,9 @@ export async function getNextQuestion(
     }
 
     const data: QuestionResponse = await response.json();
+    console.log('[getNextQuestion] Received data from Edge Function:', data);
+    console.log('[getNextQuestion] question_id type:', typeof data.question_id);
+    console.log('[getNextQuestion] Raw response:', JSON.stringify(data));
     return data;
   } catch (err) {
     console.error("Error in getNextQuestion:", err);

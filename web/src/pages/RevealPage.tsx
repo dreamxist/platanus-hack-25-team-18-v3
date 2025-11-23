@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAppContext } from "@/context/AppContext";
 import { getTopCandidate, getCandidateScore, getTopicScores } from "@/data/mockData";
+import { getCurrentUserId } from "@/services/sessionService";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Share2, X, Bell } from "lucide-react";
@@ -11,8 +12,7 @@ import { toPng } from "html-to-image";
 
 const RevealPage = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const userId = searchParams.get("userId");
+  const userId = getCurrentUserId();
   const { answers, resetApp, candidates, ideas } = useAppContext();
   const shareRef = useRef<HTMLDivElement>(null);
   const [isSharing, setIsSharing] = useState(false);
@@ -20,7 +20,7 @@ const RevealPage = () => {
   const topCandidate = getTopCandidate(answers, candidates);
 
   if (!topCandidate) {
-    navigate(`/?userId=${userId}`);
+    navigate('/');
     return null;
   }
 
@@ -138,7 +138,7 @@ const RevealPage = () => {
 
   const handleClose = () => {
     resetApp();
-    navigate(`/?userId=${userId}`);
+    navigate('/');
   };
 
   return (

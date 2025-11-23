@@ -1,24 +1,28 @@
 import { create } from 'zustand';
-import { supabase } from '@/integrations/supabase/client';
+import { getCurrentUserId } from '@/services/sessionService';
 
 interface AuthState {
   userId: string | null;
   isInitialized: boolean;
-  initAuth: () => Promise<void>;
+  initAuth: () => void;
   setUserId: (userId: string | null) => void;
+  clearAuth: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   userId: null,
   isInitialized: false,
 
-  initAuth: async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+  initAuth: () => {
+    // Read userId from localStorage instead of Supabase session
+    const userId = getCurrentUserId();
     set({
-      userId: user?.id || null,
+      userId,
       isInitialized: true
     });
   },
 
   setUserId: (userId) => set({ userId }),
+
+  clearAuth: () => set({ userId: null, isInitialized: false }),
 }));

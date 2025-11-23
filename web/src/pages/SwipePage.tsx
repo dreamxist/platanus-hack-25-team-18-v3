@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAppContext } from "@/context/AppContext";
 import { SwipeCard } from "@/components/molecules/SwipeCard";
 import { getUserTopicIds } from "@/services/opinionsService";
+import { getCurrentUserId } from "@/services/sessionService";
 import {
   motion,
   useMotionValue,
@@ -17,11 +18,9 @@ const SwipePage = () => {
   console.log("SwipePage component mounted");
 
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const userId = searchParams.get("userId");
+  const userId = getCurrentUserId();
 
-  console.log("SwipePage - userId from URL:", userId);
-  console.log("SwipePage - searchParams:", searchParams.toString());
+  console.log("SwipePage - userId from localStorage:", userId);
 
   const {
     getCurrentIdea,
@@ -30,7 +29,6 @@ const SwipePage = () => {
     loadOpinions,
     isLoading,
     error,
-    userId: contextUserId,
     ideas,
     answerIdea,
   } = useAppContext();
@@ -73,8 +71,6 @@ const SwipePage = () => {
     ]
   );
 
-  console.log("SwipePage - contextUserId:", contextUserId);
-
   // Load opinions when component mounts
   useEffect(() => {
     // Prevent multiple simultaneous initializations
@@ -87,27 +83,23 @@ const SwipePage = () => {
     isInitializingRef.current = true;
 
     const initializeOpinions = async () => {
-      // Use userId from URL if available, otherwise use context userId
-      const effectiveUserId = userId || contextUserId;
+      console.log("SwipePage - userId:", userId);
 
-      console.log("SwipePage - effectiveUserId:", effectiveUserId);
-
-      if (!effectiveUserId) {
-        console.log("SwipePage - No userId found, skipping initialization");
-        setHasInitialized(true);
-        isInitializingRef.current = false;
+      if (!userId) {
+        console.log("SwipePage - No userId found, redirecting to landing");
+        navigate('/');
         return;
       }
 
       try {
         // Get user's selected topics
-        const topicIds = await getUserTopicIds(effectiveUserId);
+        const topicIds = await getUserTopicIds(userId);
         console.log("SwipePage - User topics:", topicIds);
 
         // Load opinions filtered by those topics (pass userId for Edge Function)
         await loadOpinions(
           topicIds.length > 0 ? topicIds : undefined,
-          effectiveUserId
+          userId
         );
         console.log("SwipePage - Opinions loaded successfully");
       } catch (err) {
@@ -120,7 +112,7 @@ const SwipePage = () => {
 
     initializeOpinions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, contextUserId]);
+  }, [userId]);
 
   useEffect(() => {
     if (shouldShowMatch()) {
@@ -129,10 +121,10 @@ const SwipePage = () => {
       setIsTransitioning(true);
       // Navegar después de la animación
       setTimeout(() => {
-        navigate(`/match?userId=${userId}`);
+        navigate('/match');
       }, 500);
     }
-  }, [shouldShowMatch, markMatchShown, navigate, userId]);
+  }, [shouldShowMatch, markMatchShown, navigate]);
 
 
   // Update swipe direction indicator based on drag position

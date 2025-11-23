@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/services/sessionService";
 import { useToast } from "@/hooks/use-toast";
 import { useAppContext } from "@/context/AppContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -73,28 +74,28 @@ const TopicsPage = () => {
     setSubmitting(true);
 
     try {
-      // Verificar si ya existe una sesión
-      const { data: { session } } = await supabase.auth.getSession();
+      // Get userId from localStorage (should exist from LandingPage)
+      const userId = getCurrentUserId();
 
-      let userId: string;
-
-      if (session?.user) {
-        // Ya existe un usuario en sesión, usar ese
-        userId = session.user.id;
-        console.log("Usuario en sesión:", userId);
-      } else {
-        // No hay sesión, crear usuario anónimo
-        const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
-
-        if (authError) throw authError;
-
-        if (!authData.user?.id) throw new Error("No se pudo crear el usuario");
-
-        userId = authData.user.id;
-        console.log("Usuario creado:", userId);
+      if (!userId) {
+        // No session exists, redirect to landing to create one
+        toast({
+          title: "Error",
+          description: "No se encontró una sesión activa. Redirigiendo...",
+          variant: "destructive",
+        });
+        setTimeout(() => navigate('/'), 1000);
+        return;
       }
 
-      // Guardar temas seleccionados
+      console.log("Usuario en sesión:", userId);
+
+      // Delete previous UserTopics and Answers if any exist
+      // This ensures fresh start on each form completion
+      await supabase.from("UserTopics").delete().eq("user_id", userId);
+      await supabase.from("Answers").delete().eq("user_id", userId);
+
+      // Save selected topics
       const userTopics = selectedTopics.map(topicId => ({
         user_id: userId,
         topic_id: topicId,
@@ -106,12 +107,12 @@ const TopicsPage = () => {
 
       if (error) throw error;
 
-      // Iniciar animación de transición
+      // Start transition animation
       setIsTransitioning(true);
 
-      // Navegar después de la animación
+      // Navigate after animation without URL params
       setTimeout(() => {
-        navigate(`/swipe?userId=${userId}`);
+        navigate('/swipe');
       }, 600);
     } catch (error: any) {
       toast({

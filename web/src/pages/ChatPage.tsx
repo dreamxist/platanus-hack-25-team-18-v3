@@ -1,19 +1,19 @@
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAppContext } from "@/context/AppContext";
 import { getTopCandidate } from "@/data/mockData";
 import { ChatContainer } from "@/components/organisms/ChatContainer";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/services/sessionService";
 
 const ChatPage = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const userId = searchParams.get("userId");
+  const userId = getCurrentUserId();
   const { answers, candidates } = useAppContext();
 
   const topCandidate = getTopCandidate(answers, candidates);
 
   if (!topCandidate) {
-    navigate(`/?userId=${userId}`);
+    navigate('/');
     return null;
   }
 
@@ -45,7 +45,7 @@ const ChatPage = () => {
       // Continuar con la navegación aunque haya error
     }
 
-    navigate(`/reveal?userId=${userId}`);
+    navigate('/reveal');
   };
 
   return (
@@ -76,7 +76,7 @@ const ChatPage = () => {
             candidateName={topCandidate.name}
             candidateId={topCandidate.id}
             onReveal={handleReveal}
-            onBack={() => navigate(`/swipe?userId=${userId}`)}
+            onBack={() => navigate('/swipe')}
           />
         </div>
       </main>
