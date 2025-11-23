@@ -199,30 +199,26 @@ export class UserManager {
    * Get a random unanswered question for the user
    */
   async getNextRandomQuestion(
-    userId: string,
-    topicNames: string[]
+    userId: string
   ): Promise<{
     question_id: string;
     topic: string;
     statement: string;
   } | null> {
-    // 1. Get topic IDs
-    const { data: topicsData } = await this.supabase
-      .from("Topics")
-      .select("id, name")
-      .in(
-        "name",
-        topicNames.map((n) =>
-          n.split("_").map((w) =>
-            w.charAt(0).toUpperCase() + w.slice(1)
-          ).join(" ")
-        )
-      );
+    // 1. Get topic IDs directly from UserTopics (no name conversion needed)
+    const { data: userTopicsData } = await this.supabase
+      .from("UserTopics")
+      .select("topic_id")
+      .eq("user_id", userId);
 
-    if (!topicsData || topicsData.length === 0) {
+    if (!userTopicsData || userTopicsData.length === 0) {
+      console.log(`[getNextRandomQuestion] No topics found for user ${userId}`);
       return null;
     }
-    const topicIds = topicsData.map((t) => t.id);
+
+    const topicIds = userTopicsData.map((ut) => ut.topic_id);
+    console.log(`[getNextRandomQuestion] User has ${topicIds.length} topics selected:`, topicIds);
+    console.log(`[getNextRandomQuestion] Raw userTopicsData:`, JSON.stringify(userTopicsData));
 
     // 2. Get IDs of opinions already answered by the user
     const { data: answeredData } = await this.supabase
@@ -259,6 +255,8 @@ export class UserManager {
       return null;
     }
 
+    console.log(`[getNextRandomQuestion] Query returned ${allOpinions?.length || 0} opinions for topicIds:`, topicIds);
+
     if (!allOpinions || allOpinions.length === 0) {
       console.log(`[getNextRandomQuestion] No opinions found for topics`);
       return null;
@@ -267,6 +265,12 @@ export class UserManager {
     // Filter out already answered opinions in memory
     const answeredSet = new Set(answeredOpinionIds);
     const opinions = allOpinions.filter((op) => !answeredSet.has(op.id));
+
+    console.log(`[getNextRandomQuestion] After filtering: ${opinions.length} unanswered out of ${allOpinions.length} total`);
+    if (opinions.length === 0 && allOpinions.length > 0) {
+      console.log(`[getNextRandomQuestion] Opinion IDs returned:`, allOpinions.map(o => o.id).slice(0, 20));
+      console.log(`[getNextRandomQuestion] Answered opinion IDs:`, Array.from(answeredSet).slice(0, 20));
+    }
 
     if (!opinions || opinions.length === 0) {
       console.log(`[getNextRandomQuestion] No more unanswered opinions available`);

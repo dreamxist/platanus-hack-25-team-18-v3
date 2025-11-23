@@ -232,14 +232,24 @@ const SwipePage = () => {
   // Render conditions AFTER all hooks
   if (!currentIdea) {
     console.log("SwipePage - No current idea, showing message");
+    // Si aún no ha inicializado, mostrar estado de carga
+    if (!hasInitialized) {
+      return (
+        <div className="h-screen w-full fixed inset-0 bg-gradient-to-br from-white via-blue-50 to-red-50 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-12 w-12 text-primary animate-spin" />
+            <div className="text-foreground text-xl">Cargando opiniones...</div>
+          </div>
+        </div>
+      );
+    }
+    // Si ya inicializó pero no hay ideas, mostrar mensaje
     return (
       <div className="h-screen w-full fixed inset-0 bg-gradient-to-br from-white via-blue-50 to-red-50 flex items-center justify-center px-4">
         <div className="text-foreground text-center">
           <div className="text-xl mb-4">No hay más preguntas</div>
           <div className="text-sm opacity-80">
-            {hasInitialized
-              ? "Has completado todas las preguntas disponibles."
-              : "Cargando preguntas..."}
+            Has completado todas las preguntas disponibles.
           </div>
         </div>
       </div>

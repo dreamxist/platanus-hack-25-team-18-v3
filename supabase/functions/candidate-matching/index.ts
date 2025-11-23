@@ -131,10 +131,7 @@ Deno.serve(async (req) => {
         );
       }
 
-      const question = await userManager.getNextRandomQuestion(
-        userId,
-        userProfile.selected_topics
-      );
+      const question = await userManager.getNextRandomQuestion(userId);
 
       if (!question) {
         console.log(`[GET question] ❌ No more questions available`);
