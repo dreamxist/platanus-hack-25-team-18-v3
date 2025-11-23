@@ -122,13 +122,13 @@ export const useSwipeStore = create<SwipeState>((set, get) => ({
         }
 
         // Extract opinion_id from question_id (format: "q_123")
-        const opinionIdMatch = question.question_id.match(/^q_(\d+)$/);
+        const opinionIdMatch = question.question_id;
         if (!opinionIdMatch) {
           console.warn('Invalid question_id format:', question.question_id);
           continue;
         }
 
-        const opinionId = parseInt(opinionIdMatch[1], 10);
+        const opinionId = opinionIdMatch as number;
 
         transformedIdeas.push({
           id: opinionId,
@@ -206,9 +206,9 @@ export const useSwipeStore = create<SwipeState>((set, get) => ({
         if (nextQuestion) {
           const opinion = await getOpinionFromQuestionId(nextQuestion.question_id);
           if (opinion) {
-            const opinionIdMatch = nextQuestion.question_id.match(/^q_(\d+)$/);
+            const opinionIdMatch = nextQuestion.question_id;
             if (opinionIdMatch) {
-              const opinionId = parseInt(opinionIdMatch[1], 10);
+              const opinionId = opinionIdMatch as number;
               const newIdea: Idea = {
                 id: opinionId,
                 candidateId: opinion.candidate_id,

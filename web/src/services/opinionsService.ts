@@ -120,13 +120,13 @@ export async function getOpinionFromQuestionId(
   questionId: string
 ): Promise<OpinionWithDetails | null> {
   // Extract opinion_id from question_id (format: "q_123")
-  const opinionIdMatch = questionId.match(/^q_(\d+)$/);
+  const opinionIdMatch = questionId;
   if (!opinionIdMatch) {
     console.error("Invalid question_id format:", questionId);
     return null;
   }
 
-  const opinionId = parseInt(opinionIdMatch[1], 10);
+  const opinionId = opinionIdMatch as number;
 
   const { data, error } = await supabase
     .from("Opinions")
