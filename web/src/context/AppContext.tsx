@@ -247,7 +247,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (!currentIdea || !userId) return;
 
       // Extract question_id from opinion_id (format: "q_123")
-      const questionId = `q_${currentIdea.id}`;
+      const questionId = currentIdea.id;
 
       const newAnswer: UserAnswer = {
         opinionId: currentIdea.id,
