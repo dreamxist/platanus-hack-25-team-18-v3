@@ -1,5 +1,4 @@
 // Matching utilities using pre-calculated embeddings from database
-import type { Candidate } from "./types.ts";
 import { UserManager } from "./user-manager.ts";
 
 /**
@@ -74,7 +73,6 @@ export async function matchByTopic(
 
   for (const opinion of opinionsWithEmbeddings) {
     if (!opinion.embedding) continue;
-
     // Parse embedding if it's a string
     let opinionEmbedding: number[];
     if (typeof opinion.embedding === "string") {

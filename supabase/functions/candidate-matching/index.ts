@@ -9,12 +9,11 @@ import {
   MatchesResponse,
   QuestionResponse,
   UserResponse,
-  TopicSelection,
 } from "./types.ts";
 import { UserManager } from "./user-manager.ts";
 
 import { ScoringSystem } from "./scoring.ts";
-import { generateEmbeddingForUserInput } from "./matching.ts";
+import { corsHeaders, createRouteNotFoundResponse } from "./http.ts";
 
 // Initialize Supabase client
 const supabaseUrl =
@@ -28,12 +27,6 @@ const userManager = new UserManager(supabase);
 
 const scoringSystem = new ScoringSystem(userManager);
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -43,28 +36,6 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     let path = url.pathname;
     console.log(`[${req.method}] ${path}`);
-
-    if (
-      path === "/candidate-matching" ||
-      path === "/candidate-matching/" ||
-      path === "/functions/v1/candidate-matching" ||
-      path === "/functions/v1/candidate-matching/"
-    ) {
-      return new Response(
-        JSON.stringify({
-          message: "Political Candidates Matching API",
-          version: "1.0.0",
-          endpoints: {
-            get_question: "GET /users/{user_id}/question",
-            submit_answer: "POST /users/{user_id}/answer",
-            get_matches: "GET /users/{user_id}/matches",
-          },
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
 
     path = path.replace(/^\/functions\/v1\/candidate-matching\/?/, "");
     path = path.replace(/^\/candidate-matching\/?/, "");
@@ -81,23 +52,10 @@ Deno.serve(async (req) => {
 
     const userMatch = path.match(/^\/users\/([^/]+)(?:\/(.+))?$/);
     if (!userMatch) {
-      return new Response(
-        JSON.stringify({
-          error: "Not found",
-          path: path,
-          method: req.method,
-          available_endpoints: {
-            root: "GET /",
-            topics: "GET /topics",
-            create_user: "POST /users",
-            user_operations: "GET/POST /users/{user_id}/...",
-          },
-        }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return createRouteNotFoundResponse({
+        path,
+        method: req.method,
+      });
     }
 
     const userId = userMatch[1];
@@ -167,8 +125,8 @@ Deno.serve(async (req) => {
         }`
       );
 
-      const opinionIdMatch = body.question_id;
-      if (!opinionIdMatch) {
+      const opinionId = body.question_id;
+      if (!opinionId) {
         console.log(`[POST answer] ❌ Invalid question_id format`);
         return new Response(
           JSON.stringify({ error: "Invalid question_id format" }),
@@ -178,8 +136,6 @@ Deno.serve(async (req) => {
           }
         );
       }
-
-      const opinionId = opinionIdMatch;
 
       // Get the opinion to get topic and statement
       const opinion = await userManager.getOpinion(opinionId);
