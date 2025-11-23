@@ -21,24 +21,29 @@ const ChatPage = () => {
     if (!userId || !topCandidate.id) return;
 
     try {
-      // Crear o actualizar el registro en UserMatches con status 'revealed'
-      // Usamos upsert para crear si no existe o actualizar si ya existe
-      const { error } = await supabase
+      // Buscar el registro existente por userId y candidateId
+      const { data: existingMatch, error: fetchError } = await supabase
         .from("UserMatches")
-        .upsert(
-          {
-            user_id: userId,
-            candidate_id: topCandidate.id,
-            status: "revealed",
-          },
-          {
-            onConflict: "user_id,candidate_id",
-          }
-        );
+        .select("*")
+        .eq("user_id", userId)
+        .eq("candidate_id", topCandidate.id)
+        .single();
 
-      if (error) {
-        console.error("Error actualizando UserMatches:", error);
+      if (fetchError) {
+        console.error("Error buscando UserMatches:", fetchError);
         // Continuar con la navegación aunque haya error
+      } else if (existingMatch) {
+        // Actualizar el status a 'revealed'
+        const { error: updateError } = await supabase
+          .from("UserMatches")
+          .update({ status: "revealed" })
+          .eq("user_id", userId)
+          .eq("candidate_id", topCandidate.id);
+
+        if (updateError) {
+          console.error("Error actualizando UserMatches:", updateError);
+          // Continuar con la navegación aunque haya error
+        }
       }
     } catch (error) {
       console.error("Error al actualizar status:", error);
