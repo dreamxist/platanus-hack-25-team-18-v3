@@ -82,6 +82,7 @@ export class UserManager {
         const opinion = a.Opinions as {
           id: number;
           text: string;
+          asseveration: string;
           Topics: { name: string };
           Candidates: { name: string };
         } | null;
@@ -94,7 +95,7 @@ export class UserManager {
           answers.push({
             question_id: questionId,
             topic,
-            statement: opinion.text,
+            statement: opinion.asseveration || opinion.text,
             agree: a.choice,
           });
         }
@@ -202,6 +203,7 @@ export class UserManager {
       id: data.id,
       text: data.text,
       embedding: data.embedding,
+      asseveration: data.asseveration,
       topic: (data.Topics as { name: string }[])[0]?.name || "",
       candidate: (data.Candidates as { name: string; political_party: string }[])[0]?.name || "",
       candidate_party: (
@@ -259,6 +261,7 @@ export class UserManager {
         `
         id,
         text,
+        asseveration,
         Topics!inner(name),
         Candidates!inner(name)
       `
@@ -307,7 +310,7 @@ export class UserManager {
       topic: (randomOpinion.Topics as { name: string }).name
         .toLowerCase()
         .replace(/\s+/g, "_"),
-      statement: randomOpinion.text,
+      statement: randomOpinion.asseveration || randomOpinion.text,
     };
   }
 

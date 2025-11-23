@@ -37,38 +37,17 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { opinion_id } = await req.json();
-
-    if (!opinion_id) {
-      return new Response(
-        JSON.stringify({
-          error: 'Falta opinion_id'
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
-        }
-      );
-    }
-
     // ----------------------------------------------------
-    // PASO A: RECUPERAR OPINION
+    // PASO A: RECUPERAR OPINIONS
     // ----------------------------------------------------
     const { data: opinions, error: opinionsError } = await supabase
       .from("Opinions")
-      .select('text')
-      .eq('id', opinion_id);
+      .select('id, text')
+      .is('asseveration', null);
 
     if (opinionsError) throw opinionsError;
 
-    const opinion = opinions[0]
-
-    // ----------------------------------------------------
-    // PASO B: LLAMADA A ANTHROPIC (Claude)
-    // ----------------------------------------------------
+    const BATCH_SIZE = 2;
     const systemPrompt = `
 Debes realizar una única aseveración. Esta debe ser lo más equivalente posible a la opinión política provista, pero neutra, tal que el encuestado no pueda discernir, distinguir ni ser influenciado por el formato de la aseveración.
 Reglas estrictas:
@@ -76,36 +55,51 @@ Reglas estrictas:
 - Escribe en texto plano, sin markdown.
 `;
 
-    // Llamada a Anthropic Claude
-    const completion = await anthropic.messages.create({
-      model: "claude-sonnet-4-5-20250929",
-      max_tokens: 2048,
-      system: systemPrompt,
-      messages: [{
-        role: "user" as const,
-        content: opinion.text
-      }]
+    // Procesar opiniones en lotes de 2
+    for (let batchStart = 0; batchStart < opinions.length; batchStart += BATCH_SIZE) {
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, opinions.length);
+      const batch = opinions.slice(batchStart, batchEnd);
+
+      // Procesar todo el lote en paralelo
+      await Promise.all(
+        batch.map(async (opinion: { id: string; text: string }) => {
+          // ----------------------------------------------------
+          // PASO B: LLAMADA A ANTHROPIC (Claude)
+          // ----------------------------------------------------
+          const completion = await anthropic.messages.create({
+            model: "claude-sonnet-4-5-20250929",
+            max_tokens: 2048,
+            system: systemPrompt,
+            messages: [{
+              role: "user" as const,
+              content: opinion.text
+            }]
+          });
+
+          // Anthropic devuelve el contenido en un array de bloques
+          const llmResponse = completion.content[0].type === 'text'
+            ? completion.content[0].text
+            : '';
+
+          // ----------------------------------------------------
+          // PASO C: ACTUALIZAR OPINION CON ASSEVERATION
+          // ----------------------------------------------------
+          const { error: updateError } = await supabase
+            .from("Opinions")
+            .update({ asseveration: llmResponse })
+            .eq('id', opinion.id);
+
+          if (updateError) throw updateError;
+        })
+      );
+    }
+    return new Response('ok', {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+      },
     });
 
-    // Anthropic devuelve el contenido en un array de bloques
-    const llmResponse = completion.content[0].type === 'text' 
-      ? completion.content[0].text 
-      : '';
-
-    // ----------------------------------------------------
-    // PASO E: RESPUESTA FINAL
-    // ----------------------------------------------------
-    return new Response(
-      JSON.stringify({
-        response: llmResponse
-      }),
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-      }
-    );
   } catch (error: any) {
     console.error('Error en la Edge Function:', error);
     return new Response(

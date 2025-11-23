@@ -227,7 +227,7 @@ Deno.serve(async (req) => {
       const answer = {
         question_id: body.question_id,
         topic: opinion.topic.toLowerCase().replace(/\s+/g, "_"),
-        statement: opinion.text,
+        statement: opinion.asseveration || opinion.text,
         agree: body.agree,
       };
 
