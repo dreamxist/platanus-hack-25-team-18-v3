@@ -142,7 +142,7 @@ const RevealPage = () => {
             await navigator.share({
               files: [file],
               title: `${overallScore}% match con ${topCandidate.name}`,
-              text: `Descubre tu candidato en MiCandida.top`,
+              text: `Descubre tu candidato en MiCandidatop`,
             });
 
             toast.success("¡Compartido!", {
@@ -260,7 +260,7 @@ const RevealPage = () => {
             {/* Branding/Footer */}
             <div className="mt-auto">
               <p className="text-3xl font-medium text-muted-foreground/70 text-center">
-                Descubre tu candidato en MiCandida.top
+                Descubre tu candidato en MiCandidatop
               </p>
             </div>
           </div>

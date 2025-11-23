@@ -37,7 +37,7 @@ Los usuarios pueden compartir sus resultados en redes sociales mediante una func
 
 MiCandida.top busca democratizar el acceso a la información política de manera accesible y entretenida. En lugar de requerir que los ciudadanos lean extensos programas políticos o busquen información dispersa, la plataforma presenta las posturas de manera digerible y permite a los usuarios descubrir sus coincidencias de forma interactiva.
 
-La aplicación es especialmente valiosa en el contexto de las elecciones presidenciales de Chile 2025, donde los ciudadanos necesitan herramientas modernas para informarse y tomar decisiones electorales informadas. Al hacer que el proceso sea rápido (aproximadamente 1 minuto para completar), visualmente atractivo, y fácil de compartir, MiCandida.top tiene el potencial de aumentar significativamente la participación ciudadana y el conocimiento político.
+La aplicación es especialmente valiosa en el contexto de las elecciones presidenciales de Chile 2025, donde los ciudadanos necesitan herramientas modernas para informarse y tomar decisiones electorales informadas. Al hacer que el proceso sea rápido (aproximadamente 2 minuto para completar), visualmente atractivo, y fácil de compartir, MiCandida.top tiene el potencial de aumentar significativamente la participación ciudadana y el conocimiento político.
 
 ## Impacto Social
 

@@ -249,7 +249,7 @@ const TopicsPage = () => {
             className="w-full text-lg py-6 shadow-elevated"
             disabled={submitting || selectedTopics.length === 0}
           >
-            {submitting ? "Guardando..." : "Comenzar a conocer candidatos"}
+            {submitting ? "Investigando..." : "Conocer perspectivas"}
           </Button>
         </div>
       </motion.div>

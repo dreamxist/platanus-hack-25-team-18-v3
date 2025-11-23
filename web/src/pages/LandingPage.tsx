@@ -130,7 +130,7 @@ const LandingPage = () => {
             <div className="text-sm text-muted-foreground">Imparcial</div>
           </motion.div>
           <motion.div variants={fadeInUp} className="text-center">
-            <div className="text-3xl font-bold text-primary mb-2">1 min</div>
+            <div className="text-3xl font-bold text-primary mb-2">2 min</div>
             <div className="text-sm text-muted-foreground">Para completar</div>
           </motion.div>
         </motion.div>
