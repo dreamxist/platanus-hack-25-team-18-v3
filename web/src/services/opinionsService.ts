@@ -119,7 +119,6 @@ export async function getUserTopicIds(userId: string): Promise<number[]> {
 export async function getOpinionFromQuestionId(
   questionId: string
 ): Promise<OpinionWithDetails | null> {
-  // Extract opinion_id from question_id (format: "q_123")
   const opinionIdMatch = questionId;
   if (!opinionIdMatch) {
     console.error("Invalid question_id format:", questionId);
