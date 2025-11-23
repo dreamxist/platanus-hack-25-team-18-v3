@@ -89,9 +89,8 @@ export class ScoringSystem {
         userAnswerEmbedding,
         answer.topic,
         this.userManager,
+        answer.agree
       );
-
-      console.log(`[updateScoresFromAnswer] Matches: ${matches}`);
 
       for (const match of matches) {
         scoreUpdates[match.candidate_id] =
