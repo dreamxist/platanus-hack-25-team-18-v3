@@ -40,8 +40,7 @@ export function calculateCosineSimilarity(
 export async function matchByTopic(
   userResponseEmbedding: number[],
   topic: string,
-  userManager: UserManager,
-  topK: number = 5
+  userManager: UserManager
 ): Promise<Array<{ candidate_id: number; score: number }>> {
   // Get opinions with embeddings for this topic from database
   const opinions = await userManager.getOpinionsForTopics([topic]);
@@ -66,8 +65,12 @@ export async function matchByTopic(
     { candidate_id: number; similarities: number[] }
   > = {};
 
-  console.log(`[matchByTopic] Found ${opinionsWithEmbeddings.length} opinions with embeddings for topic: ${topic}`);
-  console.log(`[matchByTopic] User embedding dimensions: ${userResponseEmbedding.length}`);
+  console.log(
+    `[matchByTopic] Found ${opinionsWithEmbeddings.length} opinions with embeddings for topic: ${topic}`
+  );
+  console.log(
+    `[matchByTopic] User embedding dimensions: ${userResponseEmbedding.length}`
+  );
 
   for (const opinion of opinionsWithEmbeddings) {
     if (!opinion.embedding) continue;
@@ -78,7 +81,10 @@ export async function matchByTopic(
       try {
         opinionEmbedding = JSON.parse(opinion.embedding);
       } catch (e) {
-        console.log(`[matchByTopic] Failed to parse embedding for opinion ${opinion.id}:`, e);
+        console.log(
+          `[matchByTopic] Failed to parse embedding for opinion ${opinion.id}:`,
+          e
+        );
         continue;
       }
     } else {
@@ -89,7 +95,7 @@ export async function matchByTopic(
     if (opinionEmbedding.length !== userResponseEmbedding.length) {
       console.log(
         `[matchByTopic] Dimension mismatch: user embedding has ${userResponseEmbedding.length} dimensions, ` +
-        `opinion ${opinion.id} embedding has ${opinionEmbedding.length} dimensions. Skipping.`
+          `opinion ${opinion.id} embedding has ${opinionEmbedding.length} dimensions. Skipping.`
       );
       continue;
     }
@@ -109,24 +115,63 @@ export async function matchByTopic(
       );
       candidateSimilarities[opinion.candidate_id].similarities.push(similarity);
     } catch (e) {
-      console.warn(`[matchByTopic] Error calculating similarity for opinion ${opinion.id}:`, e);
+      console.warn(
+        `[matchByTopic] Error calculating similarity for opinion ${opinion.id}:`,
+        e
+      );
       continue;
     }
   }
 
-  // Calculate average similarity per candidate
-  const results: Array<{ candidate_id: number; score: number }> = [];
+  // Calculate average score per candidate using top 3 similarities
+  const candidateScores: Record<number, number> = {};
   for (const data of Object.values(candidateSimilarities)) {
-    const avgSimilarity =
-      data.similarities.reduce((sum, s) => sum + s, 0) /
-      data.similarities.length;
-    results.push({ candidate_id: data.candidate_id, score: avgSimilarity });
+    // Sort similarities in descending order and take top 3
+    const sortedSimilarities = [...data.similarities].sort((a, b) => b - a);
+    const top3Similarities = sortedSimilarities.slice(0, 3);
+
+    // Calculate average of top 3 similarities
+    const avgScore =
+      top3Similarities.length > 0
+        ? top3Similarities.reduce((sum, s) => sum + s, 0) /
+          top3Similarities.length
+        : 0;
+
+    candidateScores[data.candidate_id] = avgScore;
   }
 
-  // Sort by similarity (highest first)
+  // Normalize scores so sum equals 1
+  const totalScore = Object.values(candidateScores).reduce(
+    (sum, score) => sum + score,
+    0
+  );
+
+  const results: Array<{ candidate_id: number; score: number }> = [];
+
+  if (totalScore === 0) {
+    // If all scores are zero, return equal distribution
+    const numCandidates = Object.keys(candidateScores).length;
+    if (numCandidates > 0) {
+      const normalizedScore = 1.0 / numCandidates;
+      for (const candidateId of Object.keys(candidateScores).map(Number)) {
+        results.push({ candidate_id: candidateId, score: normalizedScore });
+      }
+    }
+  } else {
+    // Normalize scores
+    for (const [candidateId, score] of Object.entries(candidateScores)) {
+      const normalizedScore = score / totalScore;
+      results.push({
+        candidate_id: Number(candidateId),
+        score: normalizedScore,
+      });
+    }
+  }
+
+  // Sort by score (highest first)
   results.sort((a, b) => b.score - a.score);
 
-  return results.slice(0, topK);
+  return results;
 }
 
 /**

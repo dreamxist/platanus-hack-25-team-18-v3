@@ -22,13 +22,13 @@ export class ScoringSystem {
 
     // Get the embedding from the opinion (not from answer - answers don't have embeddings)
     // We need to get the opinion to access its embedding
-    const opinionIdMatch = answer.question_id.match(/^q_(\d+)$/);
+    const opinionIdMatch = answer.question_id;
     if (!opinionIdMatch) {
       console.error("Invalid question_id format:", answer.question_id);
       return;
     }
 
-    const opinionId = parseInt(opinionIdMatch[1], 10);
+    const opinionId = opinionIdMatch;
     const opinion = await this.userManager.getOpinion(opinionId);
 
     if (!opinion) {
@@ -89,8 +89,9 @@ export class ScoringSystem {
         userAnswerEmbedding,
         answer.topic,
         this.userManager,
-        5
       );
+
+      console.log(`[updateScoresFromAnswer] Matches: ${matches}`);
 
       for (const match of matches) {
         scoreUpdates[match.candidate_id] =

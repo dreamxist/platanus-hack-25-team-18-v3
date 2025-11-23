@@ -4,9 +4,10 @@ import type { Answer, UserProfile } from "./types.ts";
 
 // Get Supabase client from environment
 function getSupabaseClient(): SupabaseClient {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL") ||
-    Deno.env.get("SUPABASE_PROJECT_URL")!;
-  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ||
+  const supabaseUrl =
+    Deno.env.get("SUPABASE_URL") || Deno.env.get("SUPABASE_PROJECT_URL")!;
+  const supabaseKey =
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ||
     Deno.env.get("SUPABASE_ANON_KEY")!;
 
   return createClient(supabaseUrl, supabaseKey);
@@ -58,7 +59,8 @@ export class UserManager {
     // Get answers for this user
     const { data: answersData } = await this.supabase
       .from("Answers")
-      .select(`
+      .select(
+        `
         id,
         opinion_id,
         choice,
@@ -69,7 +71,8 @@ export class UserManager {
           Topics!inner(name),
           Candidates!inner(name)
         )
-      `)
+      `
+      )
       .eq("user_id", userId)
       .order("created_at", { ascending: true });
 
@@ -85,7 +88,7 @@ export class UserManager {
 
         if (opinion) {
           // Generate a question_id from opinion_id
-          const questionId = `q_${opinion.id}`;
+          const questionId = `${opinion.id}`;
           const topic = opinion.Topics.name.toLowerCase().replace(/\s+/g, "_");
 
           answers.push({
@@ -117,9 +120,10 @@ export class UserManager {
       .in(
         "name",
         topicNames.map((n) =>
-          n.split("_").map((w) =>
-            w.charAt(0).toUpperCase() + w.slice(1)
-          ).join(" ")
+          n
+            .split("_")
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" ")
         )
       );
 
@@ -136,9 +140,7 @@ export class UserManager {
       topic_id: topic.id,
     }));
 
-    const { error } = await this.supabase.from("UserTopics").insert(
-      userTopics
-    );
+    const { error } = await this.supabase.from("UserTopics").insert(userTopics);
 
     return !error;
   }
@@ -159,15 +161,14 @@ export class UserManager {
     return !error;
   }
 
-
-
   /**
    * Get opinion by ID
    */
   async getOpinion(opinionId: number) {
     const { data, error } = await this.supabase
       .from("Opinions")
-      .select(`
+      .select(
+        `
         id,
         text,
         embedding,
@@ -201,11 +202,11 @@ export class UserManager {
       id: data.id,
       text: data.text,
       embedding: data.embedding,
-      topic: (data.Topics as { name: string }).name,
-      candidate: (data.Candidates as { name: string; political_party: string })
-        .name,
-      candidate_party: (data.Candidates as { name: string; political_party: string })
-        .political_party,
+      topic: (data.Topics as { name: string }[])[0]?.name || "",
+      candidate: (data.Candidates as { name: string; political_party: string }[])[0]?.name || "",
+      candidate_party: (
+        data.Candidates as { name: string; political_party: string }[]
+      )[0]?.political_party || "",
     };
   }
 
@@ -215,7 +216,7 @@ export class UserManager {
   async getNextRandomQuestion(
     userId: string
   ): Promise<{
-    question_id: string;
+    question_id: number;
     topic: string;
     statement: string;
   } | null> {
@@ -239,9 +240,11 @@ export class UserManager {
       .from("Answers")
       .select("opinion_id")
       .eq("user_id", userId);
-    
-    const answeredOpinionIds = answeredData?.map(a => a.opinion_id) || [];
-    console.log(`[getNextRandomQuestion] User has answered ${answeredOpinionIds.length} opinions`);
+
+    const answeredOpinionIds = answeredData?.map((a) => a.opinion_id) || [];
+    console.log(
+      `[getNextRandomQuestion] User has answered ${answeredOpinionIds.length} opinions`
+    );
 
     // 3. Fetch a random opinion that hasn't been answered
     // Note: "random" in SQL can be slow for huge tables, but fine for this scale.
@@ -252,12 +255,14 @@ export class UserManager {
 
     const query = this.supabase
       .from("Opinions")
-      .select(`
+      .select(
+        `
         id,
         text,
         Topics!inner(name),
         Candidates!inner(name)
-      `)
+      `
+      )
       .in("topic_id", topicIds);
 
     // Fetch a large batch to ensure we have enough candidates
@@ -293,11 +298,15 @@ export class UserManager {
 
     // Pick one randomly
     const randomOpinion = opinions[Math.floor(Math.random() * opinions.length)];
-    console.log(`[getNextRandomQuestion] Selected opinion ${randomOpinion.id} from ${opinions.length} candidates`);
+    console.log(
+      `[getNextRandomQuestion] Selected opinion ${randomOpinion.id} from ${opinions.length} candidates`
+    );
 
     return {
-      question_id: `q_${randomOpinion.id}`,
-      topic: (randomOpinion.Topics as { name: string }).name.toLowerCase().replace(/\s+/g, "_"),
+      question_id: randomOpinion.id,
+      topic: (randomOpinion.Topics as { name: string }).name
+        .toLowerCase()
+        .replace(/\s+/g, "_"),
       statement: randomOpinion.text,
     };
   }
@@ -313,9 +322,10 @@ export class UserManager {
       .in(
         "name",
         topicNames.map((n) =>
-          n.split("_").map((w) =>
-            w.charAt(0).toUpperCase() + w.slice(1)
-          ).join(" ")
+          n
+            .split("_")
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" ")
         )
       );
 
@@ -328,7 +338,8 @@ export class UserManager {
     // Get opinions for these topics (including embeddings if available)
     const { data: opinionsData } = await this.supabase
       .from("Opinions")
-      .select(`
+      .select(
+        `
         id,
         text,
         embedding,
@@ -336,7 +347,8 @@ export class UserManager {
         topic_id,
         Topics(name),
         Candidates(name, political_party)
-      `)
+      `
+      )
       .in("topic_id", topicIds)
       .not("embedding", "is", null); // Only get opinions with embeddings
 
@@ -352,8 +364,9 @@ export class UserManager {
       topic_id: op.topic_id,
       candidate: (op.Candidates as { name: string; political_party: string })
         .name,
-      candidate_party: (op.Candidates as { name: string; political_party: string })
-        .political_party,
+      candidate_party: (
+        op.Candidates as { name: string; political_party: string }
+      ).political_party,
       candidate_id: op.candidate_id,
     }));
   }
@@ -434,15 +447,16 @@ export class UserManager {
     // Create summary by topic
     const summaryParts: string[] = [];
     for (const [topic, preferences] of Object.entries(topicPreferences)) {
-      const topicSummary = `${topic.charAt(0).toUpperCase() + topic.slice(1)}: `;
+      const topicSummary = `${
+        topic.charAt(0).toUpperCase() + topic.slice(1)
+      }: `;
       if (preferences.length === 1) {
         summaryParts.push(topicSummary + preferences[0]);
       } else {
         // Combine multiple preferences for the topic
         const combined = preferences.slice(0, 3).join("; ");
-        const more = preferences.length > 3
-          ? ` (and ${preferences.length - 3} more)`
-          : "";
+        const more =
+          preferences.length > 3 ? ` (and ${preferences.length - 3} more)` : "";
         summaryParts.push(topicSummary + combined + more);
       }
     }

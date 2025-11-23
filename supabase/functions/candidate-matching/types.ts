@@ -7,7 +7,7 @@ export interface Candidate {
 }
 
 export interface Answer {
-  question_id: string;
+  question_id: number;
   topic: string;
   statement: string;
   agree: boolean;
@@ -42,18 +42,18 @@ export interface UserResponse {
 }
 
 export interface QuestionResponse {
-  question_id: string;
+  question_id: number;
   topic: string;
   statement: string;
 }
 
 export interface AnswerRequest {
-  question_id: string;
+  question_id: number;
   agree: boolean;
 }
 
 export interface AnswerResponse {
-  question_id: string;
+  question_id: number;
   answer_accepted: boolean;
   current_scores?: Record<string, number>;
   has_strong_match: boolean;

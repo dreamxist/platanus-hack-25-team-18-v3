@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
         }`
       );
 
-      const opinionIdMatch = body.question_id.match(/^q_(\d+)$/);
+      const opinionIdMatch = body.question_id;
       if (!opinionIdMatch) {
         console.log(`[POST answer] ❌ Invalid question_id format`);
         return new Response(
@@ -179,7 +179,7 @@ Deno.serve(async (req) => {
         );
       }
 
-      const opinionId = parseInt(opinionIdMatch[1], 10);
+      const opinionId = opinionIdMatch;
 
       // Get the opinion to get topic and statement
       const opinion = await userManager.getOpinion(opinionId);
