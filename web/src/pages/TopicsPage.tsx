@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/services/sessionService";
 import { useToast } from "@/hooks/use-toast";
@@ -22,7 +22,22 @@ const TopicsPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+
+  // Mostrar mensaje si viene porque no había preguntas
+  useEffect(() => {
+    if (location.state?.noQuestions) {
+      toast({
+        title: "No logramos alinearte",
+        description: "Elije otros tópicos para continuar",
+        variant: "default",
+      });
+
+      // Limpiar el estado para evitar que se muestre de nuevo
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, toast]);
 
   useEffect(() => {
     // Siempre recargar para asegurar que tenemos los emojis
