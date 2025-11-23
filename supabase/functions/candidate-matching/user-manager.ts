@@ -1,6 +1,7 @@
 // User profile manager using Supabase database
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Answer, UserProfile } from "./types.ts";
+import { OpinionWithEmbedding, pickFarthestOpinion } from "./matching.ts";
 
 // Get Supabase client from environment
 function getSupabaseClient(): SupabaseClient {
@@ -222,95 +223,140 @@ export class UserManager {
     topic: string;
     statement: string;
   } | null> {
-    // 1. Get topic IDs directly from UserTopics (no name conversion needed)
-    const { data: userTopicsData } = await this.supabase
+    // 1. Get topic IDs from UserTopics
+    const { data: userTopicsData, error: topicsError } = await this.supabase
       .from("UserTopics")
       .select("topic_id")
       .eq("user_id", userId);
-
+  
+    if (topicsError) {
+      console.error("[getNextRandomQuestion] Error fetching topics:", topicsError);
+      return null;
+    }
+  
     if (!userTopicsData || userTopicsData.length === 0) {
       console.log(`[getNextRandomQuestion] No topics found for user ${userId}`);
       return null;
     }
-
-    const topicIds = userTopicsData.map((ut) => ut.topic_id);
-    console.log(`[getNextRandomQuestion] User has ${topicIds.length} topics selected:`, topicIds);
-    console.log(`[getNextRandomQuestion] Raw userTopicsData:`, JSON.stringify(userTopicsData));
-
+  
+    const topicIds = userTopicsData.map((ut) => ut.topic_id as number);
+  
     // 2. Get IDs of opinions already answered by the user
-    const { data: answeredData } = await this.supabase
+    const { data: answeredData, error: answeredError } = await this.supabase
       .from("Answers")
       .select("opinion_id")
       .eq("user_id", userId);
-
-    const answeredOpinionIds = answeredData?.map((a) => a.opinion_id) || [];
-    console.log(
-      `[getNextRandomQuestion] User has answered ${answeredOpinionIds.length} opinions`
-    );
-
-    // 3. Fetch a random opinion that hasn't been answered
-    // Note: "random" in SQL can be slow for huge tables, but fine for this scale.
-    // We use a stored procedure or just order by random() if supported,
-    // but Supabase JS client doesn't support .order('random()') directly easily without RPC.
-    // Workaround: Fetch a batch of candidate opinions and pick one randomly in code,
-    // OR use an RPC. For now, let's fetch a batch of un-answered opinions and pick one.
-
-    const query = this.supabase
+  
+    if (answeredError) {
+      console.error(
+        "[getNextRandomQuestion] Error fetching answered opinions:",
+        answeredError
+      );
+      return null;
+    }
+  
+    const answeredOpinionIds =
+      answeredData?.map((a) => a.opinion_id as number) ?? [];
+  
+    // 3. Fetch embeddings for answered opinions (these are our "chosen points")
+    let chosenEmbeddings: number[][] = [];
+  
+    if (answeredOpinionIds.length > 0) {
+      const { data: answeredOpinions, error: answeredOpinionsError } =
+        await this.supabase
+          .from("Opinions")
+          .select("id, embedding")
+          .in("id", answeredOpinionIds);
+  
+      if (answeredOpinionsError) {
+        console.error(
+          "[getNextRandomQuestion] Error fetching embeddings for answered opinions:",
+          answeredOpinionsError
+        );
+        return null;
+      }
+  
+      chosenEmbeddings =
+        answeredOpinions
+          ?.map((o) => o.embedding as number[] | null)
+          .filter((e): e is number[] => Array.isArray(e)) ?? [];
+    }
+  
+    // 4. Fetch candidate opinions:
+    //    - same topics as user
+    //    - not answered yet
+    //    - with embeddings + topic name
+    let opinionsQuery = this.supabase
       .from("Opinions")
       .select(
         `
-        id,
-        text,
-        asseveration,
-        Topics!inner(name),
-        Candidates!inner(name)
-      `
+          id,
+          text,
+          asseveration,
+          embedding,
+          Topics!inner(name)
+        `
       )
       .in("topic_id", topicIds);
 
-    // Fetch a large batch to ensure we have enough candidates
-    // Using 1000 instead of 50 to handle cases where user has answered many questions
-    const { data: allOpinions, error } = await query.limit(1000);
+    console.log(`[getNextRandomQuestion] Opinions query before NOT IN filter: ${JSON.stringify(opinionsQuery)}`);
+  
+    // Only add NOT IN filter if we actually have answered IDs
+    if (answeredOpinionIds.length > 0) {
+      opinionsQuery = opinionsQuery.not("id", "in", `(${answeredOpinionIds.join(",")})`);
+    }
 
-    if (error) {
-      console.error(`[getNextRandomQuestion] Query error:`, error);
+    console.log(`[getNextRandomQuestion] Opinions query after NOT IN filter: ${JSON.stringify(opinionsQuery)}`);
+  
+    const { data: opinions, error: opinionsError } = await opinionsQuery;
+  
+    if (opinionsError) {
+      console.error("[getNextRandomQuestion] Error fetching opinions:", opinionsError);
       return null;
     }
-
-    console.log(`[getNextRandomQuestion] Query returned ${allOpinions?.length || 0} opinions for topicIds:`, topicIds);
-
-    if (!allOpinions || allOpinions.length === 0) {
-      console.log(`[getNextRandomQuestion] No opinions found for topics`);
-      return null;
-    }
-
-    // Filter out already answered opinions in memory
-    const answeredSet = new Set(answeredOpinionIds);
-    const opinions = allOpinions.filter((op) => !answeredSet.has(op.id));
-
-    console.log(`[getNextRandomQuestion] After filtering: ${opinions.length} unanswered out of ${allOpinions.length} total`);
-    if (opinions.length === 0 && allOpinions.length > 0) {
-      console.log(`[getNextRandomQuestion] Opinion IDs returned:`, allOpinions.map(o => o.id).slice(0, 20));
-      console.log(`[getNextRandomQuestion] Answered opinion IDs:`, Array.from(answeredSet).slice(0, 20));
-    }
-
+  
     if (!opinions || opinions.length === 0) {
-      console.log(`[getNextRandomQuestion] No more unanswered opinions available`);
+      console.log("[getNextRandomQuestion] No unanswered opinions available");
       return null;
     }
-
-    // Pick one randomly
-    const randomOpinion = opinions[Math.floor(Math.random() * opinions.length)];
-    console.log(
-      `[getNextRandomQuestion] Selected opinion ${randomOpinion.id} from ${opinions.length} candidates`
+  
+    // Filter out opinions without embedding (just in case)
+    const candidates = (opinions as any as OpinionWithEmbedding[]).filter(
+      (op) => Array.isArray(op.embedding) && op.embedding.length > 0
     );
-
+  
+    if (candidates.length === 0) {
+      console.log(
+        "[getNextRandomQuestion] No opinions with embeddings available, falling back to random from all opinions"
+      );
+    }
+  
+    let selectedOpinion: OpinionWithEmbedding;
+  
+    if (chosenEmbeddings.length === 0 || candidates.length === 0) {
+      // No previous answers or no embedded candidates -> fallback to simple random
+      const pool =
+        candidates.length > 0
+          ? candidates
+          : (opinions as any as OpinionWithEmbedding[]);
+      selectedOpinion = pool[Math.floor(Math.random() * pool.length)];
+      console.log(
+        `[getNextRandomQuestion] Using random selection (no answered embeddings yet)`
+      );
+    } else {
+      // 5. Use farthest-point strategy
+      selectedOpinion = pickFarthestOpinion(candidates, chosenEmbeddings);
+      console.log(
+        `[getNextRandomQuestion] Selected opinion ${selectedOpinion.id} using farthest-point strategy among ${candidates.length} candidates`
+      );
+    }
+  
+    const topicName = (selectedOpinion.Topics as { name: string }).name;
+  
     return {
-      question_id: randomOpinion.id,
-      topic: (randomOpinion.Topics as { name: string }).name
-        .toLowerCase()
-        .replace(/\s+/g, "_"),
-      statement: randomOpinion.asseveration || randomOpinion.text,
+      question_id: selectedOpinion.id,
+      topic: topicName.toLowerCase().replace(/\s+/g, "_"),
+      statement: selectedOpinion.asseveration || selectedOpinion.text || "",
     };
   }
 
