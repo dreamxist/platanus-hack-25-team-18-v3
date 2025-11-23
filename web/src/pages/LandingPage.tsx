@@ -26,9 +26,6 @@ const LandingPage = () => {
       if (userId) {
         // Actualizar el store de Zustand
         setUserId(userId);
-        console.log("Nueva sesión creada:", userId);
-      } else {
-        console.error("Error al crear nueva sesión");
       }
     };
     initializeSession();

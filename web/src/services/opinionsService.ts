@@ -235,9 +235,6 @@ export async function getNextQuestion(
     }
 
     const data: QuestionResponse = await response.json();
-    console.log('[getNextQuestion] Received data from Edge Function:', data);
-    console.log('[getNextQuestion] question_id type:', typeof data.question_id);
-    console.log('[getNextQuestion] Raw response:', JSON.stringify(data));
     return data;
   } catch (err) {
     console.error("Error in getNextQuestion:", err);

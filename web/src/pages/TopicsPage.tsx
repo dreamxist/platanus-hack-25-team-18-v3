@@ -103,8 +103,6 @@ const TopicsPage = () => {
         return;
       }
 
-      console.log("Usuario en sesión:", userId);
-
       // Delete previous UserTopics and Answers if any exist
       // This ensures fresh start on each form completion
       await supabase.from("UserTopics").delete().eq("user_id", userId);

@@ -74,22 +74,15 @@ const RevealPage = () => {
       toast.info("Preparando imagen...", { duration: 2000 });
 
       // Pre-load both images in parallel using Promise.all
-      console.log('Loading images in parallel...');
       const [candidateImageBase64, chileImageBase64] = await Promise.all([
         getImageAsBase64(candidateImage),
         getImageAsBase64('/screen/chile.png')
       ]);
-      console.log('Both images loaded successfully');
 
       // Update the images in the share ref
       if (shareRef.current) {
         const candidateImgElement = shareRef.current.querySelector('.candidate-share-image') as HTMLImageElement;
         const chileImgElement = shareRef.current.querySelector('.chile-share-image') as HTMLImageElement;
-
-        console.log('Found elements:', {
-          candidate: !!candidateImgElement,
-          chile: !!chileImgElement
-        });
 
         if (candidateImgElement) candidateImgElement.src = candidateImageBase64;
         if (chileImgElement) chileImgElement.src = chileImageBase64;
@@ -100,8 +93,6 @@ const RevealPage = () => {
 
       if (shareRef.current) {
         toast.info("Generando imagen...", { duration: 2000 });
-
-        console.log('Starting html2canvas conversion');
 
         // Temporarily make the element visible for html2canvas capture
         // But keep it behind everything and off-screen so user doesn't see it
@@ -131,8 +122,6 @@ const RevealPage = () => {
         shareRef.current.style.visibility = originalVisibility;
         shareRef.current.style.left = originalLeft;
 
-        console.log('Canvas generated successfully');
-
         // Convert canvas to blob for better mobile compatibility
         const blob = await new Promise<Blob>((resolve, reject) => {
           canvas.toBlob((blob) => {
@@ -140,8 +129,6 @@ const RevealPage = () => {
             else reject(new Error('Failed to create blob'));
           }, 'image/png', 1.0);
         });
-
-        console.log('Blob created:', blob.size, 'bytes');
 
         // Check if Web Share API is available (mobile browsers)
         const canShare = navigator.share && navigator.canShare;
@@ -152,7 +139,6 @@ const RevealPage = () => {
 
           // Check if we can share files
           if (navigator.canShare({ files: [file] })) {
-            console.log('Using native share API');
             await navigator.share({
               files: [file],
               title: `${overallScore}% match con ${topCandidate.name}`,
@@ -168,7 +154,6 @@ const RevealPage = () => {
           }
         } else {
           // Fallback for desktop: download the image
-          console.log('Using download fallback');
           const dataUrl = canvas.toDataURL('image/png');
           const link = document.createElement('a');
           link.download = `match-${topCandidate.name.replace(/\s+/g, '-').toLowerCase()}.png`;

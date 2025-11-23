@@ -62,16 +62,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     async (topicIds?: number[], userId?: string) => {
       // Prevent multiple simultaneous calls
       if (isLoadingOpinions) {
-        console.log("AppContext - loadOpinions already in progress, skipping");
         return;
       }
 
-      console.log(
-        "AppContext - loadOpinions called with topicIds:",
-        topicIds,
-        "userId:",
-        userId
-      );
       setIsLoadingOpinions(true);
       setIsLoading(true);
       setError(null);
@@ -90,17 +83,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           opinion: OpinionWithDetails | null;
         }> = [];
 
-        console.log(`AppContext - Pre-fetching ${preFetchCount} questions...`);
         for (let i = 0; i < preFetchCount; i++) {
           const question = await getNextQuestion(userId);
-          console.log(`AppContext - Question ${i}:`, question);
-          console.log(
-            `AppContext - Question ID type:`,
-            typeof question?.question_id
-          );
 
           if (!question) {
-            console.log(`AppContext - No more questions at index ${i}`);
             // No more questions available
             break;
           }
@@ -124,13 +110,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             continue;
           }
           const opinion = await getOpinionFromQuestionId(opinionId);
-          console.log(
-            `AppContext - Opinion for question ${question.question_id}:`,
-            opinion
-          );
           questions.push({ question, opinion });
         }
-        console.log(`AppContext - Pre-fetched ${questions.length} questions`);
 
         if (questions.length === 0) {
           setError(
@@ -145,7 +126,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const uniqueCandidates = new Map<number, Candidate>();
 
         for (const { question, opinion } of questions) {
-          console.log("debug", question, opinion);
           if (!opinion) {
             console.warn(
               "Could not fetch opinion details for question:",
@@ -212,16 +192,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setIdeas(transformedIdeas);
         setCandidates(Array.from(uniqueCandidates.values()));
       } catch (err) {
-        console.error("AppContext - Error loading opinions:", err);
-        console.error("AppContext - Error type:", typeof err);
-        console.error(
-          "AppContext - Error details:",
-          err instanceof Error ? err.message : String(err)
-        );
-        console.error(
-          "AppContext - Error stack:",
-          err instanceof Error ? err.stack : "No stack"
-        );
         setError("Error al cargar las opiniones. Por favor, intenta de nuevo.");
       } finally {
         setIsLoading(false);
@@ -266,14 +236,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const answerIdea = useCallback(
     async (userId: string, answer: "agree" | "disagree") => {
       const currentIdea = ideas[currentIdeaIndex];
-      console.log(
-        "debug",
-        "userId",
-        userId,
-        "currentIdea",
-        currentIdea,
-        "ideas"
-      );
 
       if (!currentIdea || !userId) return;
 

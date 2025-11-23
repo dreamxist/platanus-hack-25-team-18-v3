@@ -15,12 +15,8 @@ import { spring, swipeConfig } from "@/config/animations";
 import { Loader2, SkipForward } from "lucide-react";
 
 const SwipePage = () => {
-  console.log("SwipePage rendering");
-
   const navigate = useNavigate();
   const userId = getCurrentUserId();
-
-  console.log("SwipePage - userId from localStorage:", userId);
 
   const {
     getCurrentIdea,
@@ -119,19 +115,13 @@ const SwipePage = () => {
   useEffect(() => {
     // Prevent multiple simultaneous initializations
     if (isInitializingRef.current || hasInitialized) {
-      console.log("SwipePage - Already initialized or initializing, skipping");
       return;
     }
 
-    console.log("SwipePage - useEffect triggered");
     isInitializingRef.current = true;
 
     const initializeOpinions = async (attempt: number = 1) => {
-      console.log(`SwipePage - Initialization attempt ${attempt}/3`);
-      console.log("SwipePage - userId:", userId);
-
       if (!userId) {
-        console.log("SwipePage - No userId found, redirecting to landing");
         navigate("/");
         return;
       }
@@ -139,7 +129,6 @@ const SwipePage = () => {
       try {
         // Get user's selected topics
         const topicIds = await getUserTopicIds(userId);
-        console.log("SwipePage - User topics:", topicIds);
 
         // Clear any previous errors before loading
         setLocalError(null);
@@ -160,7 +149,6 @@ const SwipePage = () => {
 
         // If we have ideas, success!
         if (hasIdeas) {
-          console.log("SwipePage - Opinions loaded successfully");
           setIsRetrying(false);
           setRetryCount(0);
           setHasInitialized(true);
@@ -170,11 +158,6 @@ const SwipePage = () => {
 
         // If no ideas and we have an error (or no questions), retry if we haven't exceeded max attempts
         if ((hasError || isNoQuestionsError) && attempt < 3) {
-          console.log(
-            `SwipePage - No questions found, retrying (attempt ${
-              attempt + 1
-            }/3)...`
-          );
           setIsRetrying(true);
           setRetryCount(attempt);
           setLoadingMessage(
@@ -191,7 +174,6 @@ const SwipePage = () => {
 
         // If we've exhausted retries
         if (attempt >= 3) {
-          console.log("SwipePage - No questions found after 3 attempts");
           setLocalError(
             "No se pudieron cargar preguntas después de varios intentos. Por favor, intente más tarde."
           );
@@ -206,13 +188,8 @@ const SwipePage = () => {
         setIsRetrying(false);
         isInitializingRef.current = false;
       } catch (err) {
-        console.error("SwipePage - Error initializing opinions:", err);
-
         // Retry on error if we haven't exceeded max attempts
         if (attempt < 3) {
-          console.log(
-            `SwipePage - Error occurred, retrying (attempt ${attempt + 1}/3)...`
-          );
           setIsRetrying(true);
           setRetryCount(attempt);
           setLoadingMessage(
@@ -260,7 +237,6 @@ const SwipePage = () => {
       !isRetrying &&
       retryCount === 0
     ) {
-      console.log("SwipePage - No questions available after initialization");
       // Don't navigate, just show error state (handled in render)
     }
   }, [hasInitialized, currentIdea, isLoading, isRetrying, retryCount]);
@@ -308,15 +284,6 @@ const SwipePage = () => {
       y.set(0);
     }
   }, [currentIdea?.id, x, y]);
-
-  console.log(
-    "SwipePage render - isLoading:",
-    isLoading,
-    "currentIdea:",
-    currentIdea,
-    "hasInitialized:",
-    hasInitialized
-  );
 
   // Show loading state
   if (isLoading) {
@@ -428,7 +395,6 @@ const SwipePage = () => {
 
   // Render conditions AFTER all hooks
   if (!currentIdea) {
-    console.log("SwipePage - No current idea, showing message");
     // Si aún no ha inicializado o está reintentando, mostrar estado de carga
     if (!hasInitialized || isRetrying) {
       return (
