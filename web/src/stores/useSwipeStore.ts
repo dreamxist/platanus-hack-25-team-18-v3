@@ -270,7 +270,7 @@ export const useSwipeStore = create<SwipeState>((set, get) => ({
   shouldShowMatch: () => {
     const { answers, hasShownImminentMatch } = get();
     // Updated to match Edge Function's 10-answer threshold
-    return answers.length >= 5 && !hasShownImminentMatch;
+    return answers.length >= 10 && !hasShownImminentMatch;
   },
 
   markMatchShown: () => set({ hasShownImminentMatch: true }),
