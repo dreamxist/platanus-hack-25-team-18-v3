@@ -31,6 +31,7 @@ const SwipePage = () => {
     error,
     ideas,
     answerIdea,
+    skipIdea,
   } = useAppContext();
 
   const currentIdea = getCurrentIdea();
@@ -352,7 +353,7 @@ const SwipePage = () => {
         typeof window !== "undefined" ? window.innerHeight : 800;
       await animate(y, exitDistance, { duration: 0.25, ease: "easeOut" });
       await animate(y, exitDistance, { duration: 0.25, ease: "easeOut" });
-      answerIdea(userId, "disagree"); // Skip acts as dislike
+      skipIdea(userId); // Skip does NOT save to database
     } else {
       // Animate horizontally for like/dislike
       const exitDistance =

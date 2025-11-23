@@ -40,7 +40,8 @@ interface AppContextType {
   shouldShowMatch: () => boolean;
   markMatchShown: () => void;
   loadOpinions: (topicIds?: number[], userId?: string) => Promise<void>;
-  answerIdea: (userId: string, answer: 'agree' | 'disagree') => Promise<void>;
+  answerIdea: (userId: string, answer: "agree" | "disagree") => Promise<void>;
+  skipIdea: (userId: string) => Promise<void>;
   loadMatches: (userId: string) => Promise<MatchesResponse>;
 }
 
@@ -89,13 +90,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           opinion: OpinionWithDetails | null;
         }> = [];
 
-        console.log(
-          `AppContext - Pre-fetching ${preFetchCount} questions...`
-        );
+        console.log(`AppContext - Pre-fetching ${preFetchCount} questions...`);
         for (let i = 0; i < preFetchCount; i++) {
           const question = await getNextQuestion(userId);
           console.log(`AppContext - Question ${i}:`, question);
-          console.log(`AppContext - Question ID type:`, typeof question?.question_id);
+          console.log(
+            `AppContext - Question ID type:`,
+            typeof question?.question_id
+          );
 
           if (!question) {
             console.log(`AppContext - No more questions at index ${i}`);
@@ -104,10 +106,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           }
 
           // Get opinion details to get candidate and topic info
-          const opinion = await getOpinionFromQuestionId(
-            question.question_id
+          // Extract opinion_id from question_id (can be number or string)
+          let opinionId: number;
+          if (typeof question.question_id === "number") {
+            opinionId = question.question_id;
+          } else if (typeof question.question_id === "string") {
+            const match = question.question_id.match(/^q_(\d+)$/);
+            opinionId = match
+              ? parseInt(match[1], 10)
+              : parseInt(question.question_id, 10);
+          } else {
+            console.warn(
+              "Unexpected question_id type:",
+              typeof question.question_id,
+              question.question_id
+            );
+            continue;
+          }
+          const opinion = await getOpinionFromQuestionId(opinionId);
+          console.log(
+            `AppContext - Opinion for question ${question.question_id}:`,
+            opinion
           );
-          console.log(`AppContext - Opinion for question ${question.question_id}:`, opinion);
           questions.push({ question, opinion });
         }
         console.log(`AppContext - Pre-fetched ${questions.length} questions`);
@@ -125,7 +145,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const uniqueCandidates = new Map<number, Candidate>();
 
         for (const { question, opinion } of questions) {
-          console.log('debug', question, opinion)
+          console.log("debug", question, opinion);
           if (!opinion) {
             console.warn(
               "Could not fetch opinion details for question:",
@@ -138,10 +158,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           // question_id can be a number (7) or string ("q_7" or "7")
           let opinionId: number;
 
-          if (typeof question.question_id === 'number') {
+          if (typeof question.question_id === "number") {
             // Already a number, use directly
             opinionId = question.question_id;
-          } else if (typeof question.question_id === 'string') {
+          } else if (typeof question.question_id === "string") {
             // Try to match "q_123" format first
             const match = question.question_id.match(/^q_(\d+)$/);
             if (match) {
@@ -150,12 +170,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
               // Try to parse as number directly
               opinionId = parseInt(question.question_id, 10);
               if (isNaN(opinionId)) {
-                console.warn("Invalid question_id format:", question.question_id);
+                console.warn(
+                  "Invalid question_id format:",
+                  question.question_id
+                );
                 continue;
               }
             }
           } else {
-            console.warn("Unexpected question_id type:", typeof question.question_id, question.question_id);
+            console.warn(
+              "Unexpected question_id type:",
+              typeof question.question_id,
+              question.question_id
+            );
             continue;
           }
 
@@ -187,8 +214,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       } catch (err) {
         console.error("AppContext - Error loading opinions:", err);
         console.error("AppContext - Error type:", typeof err);
-        console.error("AppContext - Error details:", err instanceof Error ? err.message : String(err));
-        console.error("AppContext - Error stack:", err instanceof Error ? err.stack : 'No stack');
+        console.error(
+          "AppContext - Error details:",
+          err instanceof Error ? err.message : String(err)
+        );
+        console.error(
+          "AppContext - Error stack:",
+          err instanceof Error ? err.stack : "No stack"
+        );
         setError("Error al cargar las opiniones. Por favor, intenta de nuevo.");
       } finally {
         setIsLoading(false);
@@ -211,15 +244,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const getProgress = () => {
+    // Count only non-skipped answers for progress
+    const nonSkippedAnswers = answers.filter((a) => a.answer !== "skip");
     return {
-      current: answers.length,
+      current: nonSkippedAnswers.length,
       total: ideas.length,
     };
   };
 
   const shouldShowMatch = () => {
+    // Count only non-skipped answers for match detection
+    const nonSkippedAnswers = answers.filter((a) => a.answer !== "skip");
     // Show match after 8 swipes if not shown yet
-    return answers.length >= 8 && !hasShownImminentMatch;
+    return nonSkippedAnswers.length >= 8 && !hasShownImminentMatch;
   };
 
   const markMatchShown = () => {
@@ -241,7 +278,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (!currentIdea || !userId) return;
 
       // Extract question_id from opinion_id (format: "q_123")
-      const questionId = currentIdea.id;
+      const questionId = String(currentIdea.id);
 
       const newAnswer: UserAnswer = {
         opinionId: currentIdea.id,
@@ -271,24 +308,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           // Pre-fetch more questions in the background
           const nextQuestion = await getNextQuestion(userId);
           if (nextQuestion) {
-            const opinion = await getOpinionFromQuestionId(
-              nextQuestion.question_id
-            );
-            if (opinion) {
-              // Extract opinion_id from question_id (can be number or string)
-              let opinionId: number;
+            // Extract opinion_id from question_id (can be number or string)
+            let opinionId: number;
+            if (typeof nextQuestion.question_id === "number") {
+              opinionId = nextQuestion.question_id;
+            } else if (typeof nextQuestion.question_id === "string") {
+              const match = nextQuestion.question_id.match(/^q_(\d+)$/);
+              opinionId = match
+                ? parseInt(match[1], 10)
+                : parseInt(nextQuestion.question_id, 10);
+            } else {
+              console.warn(
+                "Unexpected question_id type in prefetch:",
+                nextQuestion.question_id
+              );
+              return;
+            }
 
-              if (typeof nextQuestion.question_id === 'number') {
-                opinionId = nextQuestion.question_id;
-              } else if (typeof nextQuestion.question_id === 'string') {
-                const match = nextQuestion.question_id.match(/^q_(\d+)$/);
-                opinionId = match ? parseInt(match[1], 10) : parseInt(nextQuestion.question_id, 10);
-              } else {
-                console.warn("Unexpected question_id type in prefetch:", nextQuestion.question_id);
-                return;
-              }
-
-              if (!isNaN(opinionId)) {
+            if (!isNaN(opinionId)) {
+              const opinion = await getOpinionFromQuestionId(opinionId);
+              if (opinion) {
                 const newIdea: Idea = {
                   id: opinionId,
                   candidateId: opinion.candidate_id,
@@ -310,6 +349,70 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         } catch (fallbackErr) {
           console.error("Error in fallback save:", fallbackErr);
         }
+      }
+    },
+    [ideas, currentIdeaIndex]
+  );
+
+  const skipIdea = useCallback(
+    async (userId: string) => {
+      const currentIdea = ideas[currentIdeaIndex];
+
+      if (!currentIdea || !userId) return;
+
+      const newAnswer: UserAnswer = {
+        opinionId: currentIdea.id,
+        candidateId: currentIdea.candidateId,
+        answer: "skip",
+      };
+
+      // Update state immediately for UI responsiveness
+      // Do NOT call submitAnswerToEdgeFunction - skip should not be saved to DB
+      setAnswers((prev) => [...prev, newAnswer]);
+      setCurrentIdeaIndex((prev) => prev + 1);
+
+      // Pre-fetch next question if we're running low on questions
+      try {
+        if (ideas.length - (currentIdeaIndex + 1) < 5) {
+          // Pre-fetch more questions in the background
+          const nextQuestion = await getNextQuestion(userId);
+          if (nextQuestion) {
+            // Extract opinion_id from question_id (can be number or string)
+            let opinionId: number;
+            if (typeof nextQuestion.question_id === "number") {
+              opinionId = nextQuestion.question_id;
+            } else if (typeof nextQuestion.question_id === "string") {
+              const match = nextQuestion.question_id.match(/^q_(\d+)$/);
+              opinionId = match
+                ? parseInt(match[1], 10)
+                : parseInt(nextQuestion.question_id, 10);
+            } else {
+              console.warn(
+                "Unexpected question_id type in prefetch:",
+                nextQuestion.question_id
+              );
+              return;
+            }
+
+            if (!isNaN(opinionId)) {
+              const opinion = await getOpinionFromQuestionId(opinionId);
+              if (opinion) {
+                const newIdea: Idea = {
+                  id: opinionId,
+                  candidateId: opinion.candidate_id,
+                  text: nextQuestion.statement,
+                  topicId: opinion.topic_id,
+                  topicName: opinion.topic.name,
+                  emoji: opinion.topic.emoji,
+                };
+                setIdeas((prev) => [...prev, newIdea]);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error pre-fetching next question after skip:", err);
+        // Non-critical error, continue
       }
     },
     [ideas, currentIdeaIndex]
@@ -344,6 +447,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         markMatchShown,
         loadOpinions,
         answerIdea,
+        skipIdea,
         loadMatches,
       }}
     >

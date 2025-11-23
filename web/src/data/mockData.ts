@@ -21,7 +21,7 @@ export interface Candidate {
 export interface UserAnswer {
   opinionId: number;
   candidateId: number;
-  answer: "agree" | "disagree";
+  answer: "agree" | "disagree" | "skip";
 }
 
 // Mock data removed - now using real database data
@@ -34,11 +34,13 @@ export function getTopCandidate(
   answers: UserAnswer[],
   availableCandidates: Candidate[]
 ): Candidate | null {
-  if (answers.length === 0) return null;
+  // Filter out skipped answers
+  const nonSkippedAnswers = answers.filter((a) => a.answer !== "skip");
+  if (nonSkippedAnswers.length === 0) return null;
 
   const scores = new Map<number, { agree: number; total: number }>();
 
-  answers.forEach((answer) => {
+  nonSkippedAnswers.forEach((answer) => {
     const current = scores.get(answer.candidateId) || { agree: 0, total: 0 };
     scores.set(answer.candidateId, {
       agree: current.agree + (answer.answer === "agree" ? 1 : 0),
@@ -65,7 +67,10 @@ export function getCandidateScore(
   candidateId: number,
   answers: UserAnswer[]
 ): number {
-  const candidateAnswers = answers.filter((a) => a.candidateId === candidateId);
+  // Filter out skipped answers
+  const candidateAnswers = answers.filter(
+    (a) => a.candidateId === candidateId && a.answer !== "skip"
+  );
   if (candidateAnswers.length === 0) return 0;
 
   const agrees = candidateAnswers.filter((a) => a.answer === "agree").length;
@@ -79,8 +84,9 @@ export function getTopicScores(
 ): Record<string, number> {
   const topicScores: Record<string, { agree: number; total: number }> = {};
 
+  // Filter out skipped answers
   answers
-    .filter((a) => a.candidateId === candidateId)
+    .filter((a) => a.candidateId === candidateId && a.answer !== "skip")
     .forEach((answer) => {
       const idea = allIdeas.find((i) => i.id === answer.opinionId);
       if (!idea) return;
