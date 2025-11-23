@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Share2, X, Bell } from "lucide-react";
 import { motion } from "framer-motion";
 import { spring } from "@/config/animations";
-import { toPng } from "html-to-image";
+import html2canvas from "html2canvas";
 
 const RevealPage = () => {
   const navigate = useNavigate();
@@ -69,68 +69,128 @@ const RevealPage = () => {
 
   const handleShare = async () => {
     setIsSharing(true);
-    
+
     try {
       toast.info("Preparando imagen...", { duration: 2000 });
-      
-      // Pre-load images as base64
-      console.log('Loading candidate image:', candidateImage);
-      const candidateImageBase64 = await getImageAsBase64(candidateImage);
-      console.log('Candidate image loaded');
-      
-      console.log('Loading chile image');
-      const chileImageBase64 = await getImageAsBase64('/screen/chile.png');
-      console.log('Chile image loaded');
-      
+
+      // Pre-load both images in parallel using Promise.all
+      console.log('Loading images in parallel...');
+      const [candidateImageBase64, chileImageBase64] = await Promise.all([
+        getImageAsBase64(candidateImage),
+        getImageAsBase64('/screen/chile.png')
+      ]);
+      console.log('Both images loaded successfully');
+
       // Update the images in the share ref
       if (shareRef.current) {
         const candidateImgElement = shareRef.current.querySelector('.candidate-share-image') as HTMLImageElement;
         const chileImgElement = shareRef.current.querySelector('.chile-share-image') as HTMLImageElement;
-        
-        console.log('Found elements:', { 
-          candidate: !!candidateImgElement, 
-          chile: !!chileImgElement 
+
+        console.log('Found elements:', {
+          candidate: !!candidateImgElement,
+          chile: !!chileImgElement
         });
-        
+
         if (candidateImgElement) candidateImgElement.src = candidateImageBase64;
         if (chileImgElement) chileImgElement.src = chileImageBase64;
       }
-      
-      // Wait for images to be updated in DOM and fully loaded
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+
+      // Wait longer for images to be fully rendered in DOM (important for mobile)
+      await new Promise(resolve => setTimeout(resolve, 800));
+
       if (shareRef.current) {
         toast.info("Generando imagen...", { duration: 2000 });
-        
-        console.log('Starting toPng conversion');
-        const dataUrl = await toPng(shareRef.current, {
-          cacheBust: true,
-          pixelRatio: 2, // Higher quality
-          backgroundColor: '#ffffff', // Ensure no transparency
-          skipFonts: true, // Skip font embedding for better compatibility
-          style: {
-            opacity: '1',
-            visibility: 'visible',
-            zIndex: '9999', // Ensure it's on top in the capture
+
+        console.log('Starting html2canvas conversion');
+
+        // Temporarily make the element visible for html2canvas capture
+        // But keep it behind everything and off-screen so user doesn't see it
+        const originalVisibility = shareRef.current.style.visibility;
+        const originalLeft = shareRef.current.style.left;
+
+        shareRef.current.style.visibility = 'visible';
+        shareRef.current.style.left = '-10000px'; // Off-screen but visible for canvas
+
+        // Wait a tick for browser to process visibility change
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // Detect if mobile for pixelRatio adjustment
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+        const canvas = await html2canvas(shareRef.current, {
+          scale: isMobile ? 1.5 : 2, // Lower scale on mobile to avoid memory issues
+          useCORS: true, // Enable CORS for images
+          allowTaint: false,
+          backgroundColor: '#ffffff',
+          logging: false, // Disable logging in production
+          windowWidth: 1080,
+          windowHeight: 1920,
+        });
+
+        // Restore original visibility
+        shareRef.current.style.visibility = originalVisibility;
+        shareRef.current.style.left = originalLeft;
+
+        console.log('Canvas generated successfully');
+
+        // Convert canvas to blob for better mobile compatibility
+        const blob = await new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('Failed to create blob'));
+          }, 'image/png', 1.0);
+        });
+
+        console.log('Blob created:', blob.size, 'bytes');
+
+        // Check if Web Share API is available (mobile browsers)
+        const canShare = navigator.share && navigator.canShare;
+
+        if (canShare) {
+          const fileName = `match-${topCandidate.name.replace(/\s+/g, '-').toLowerCase()}.png`;
+          const file = new File([blob], fileName, { type: 'image/png' });
+
+          // Check if we can share files
+          if (navigator.canShare({ files: [file] })) {
+            console.log('Using native share API');
+            await navigator.share({
+              files: [file],
+              title: `${overallScore}% match con ${topCandidate.name}`,
+              text: `Descubre tu candidato en MiCandida.top`,
+            });
+
+            toast.success("¡Compartido!", {
+              description: "Gracias por compartir",
+            });
+          } else {
+            // Fallback to download if can't share files
+            throw new Error('Cannot share files');
           }
-        });
-        
-        console.log('Image generated successfully');
-        
-        const link = document.createElement('a');
-        link.download = `match-${topCandidate.name.replace(/\s+/g, '-').toLowerCase()}.png`;
-        link.href = dataUrl;
-        link.click();
-        
-        toast.success("¡Imagen descargada!", {
-          description: "Lista para compartir en tus redes",
-        });
+        } else {
+          // Fallback for desktop: download the image
+          console.log('Using download fallback');
+          const dataUrl = canvas.toDataURL('image/png');
+          const link = document.createElement('a');
+          link.download = `match-${topCandidate.name.replace(/\s+/g, '-').toLowerCase()}.png`;
+          link.href = dataUrl;
+          link.click();
+
+          toast.success("¡Imagen descargada!", {
+            description: "Lista para compartir en tus redes",
+          });
+        }
       }
     } catch (err) {
       console.error('Share error:', err);
-      toast.error("Error al generar la imagen", {
-        description: err instanceof Error ? err.message : 'Error desconocido'
-      });
+
+      // Don't show error if user cancelled share dialog
+      if (err instanceof Error && err.name === 'AbortError') {
+        toast.info("Compartir cancelado");
+      } else {
+        toast.error("Error al generar la imagen", {
+          description: err instanceof Error ? err.message : 'Error desconocido'
+        });
+      }
     } finally {
       setIsSharing(false);
     }
@@ -144,13 +204,15 @@ const RevealPage = () => {
   return (
     <div className="min-h-[100dvh] w-full relative bg-background">
       {/* Shareable Component - Rendered but invisible to user */}
-      <div 
+      <div
         ref={shareRef}
-        className="fixed top-0 left-0 w-[1080px] h-[1920px] bg-background overflow-hidden flex flex-col z-[-50]"
-        style={{ 
-          // Keep it in the DOM and layout, but invisible and behind everything
-          visibility: isSharing ? 'visible' : 'hidden',
-          opacity: 0, 
+        className="fixed w-[1080px] h-[1920px] bg-white overflow-hidden flex flex-col"
+        style={{
+          // Position normally but hidden - html2canvas will make it visible temporarily
+          left: '0',
+          top: '0',
+          visibility: 'hidden',
+          zIndex: -9999,
           pointerEvents: 'none',
         }}
       >
