@@ -203,3 +203,63 @@ export async function generateEmbeddingForUserInput(
   const data = await response.json();
   return data.data[0].embedding;
 }
+
+export function cosineDistance(a: number[], b: number[]): number {
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+
+  for (let i = 0; i < a.length; i++) {
+    const ai = a[i];
+    const bi = b[i];
+    dot += ai * bi;
+    normA += ai * ai;
+    normB += bi * bi;
+  }
+
+  if (normA === 0 || normB === 0) return 1; // max distance if something is zero-vector
+
+  return 1 - dot / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+export type OpinionWithEmbedding = {
+  id: number;
+  text: string | null;
+  asseveration: string | null;
+  embedding: number[] | null;
+  Topics: { name: string };
+};
+
+export function pickFarthestOpinion(
+  candidates: OpinionWithEmbedding[],
+  chosenEmbeddings: number[][]
+): OpinionWithEmbedding {
+  // If for some reason we don't have embeddings, just fallback to random
+  if (chosenEmbeddings.length === 0) {
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  let bestOpinion: OpinionWithEmbedding = candidates[0];
+  let bestScore = -Infinity;
+
+  for (const op of candidates) {
+    if (!op.embedding) continue; // skip opinions without embedding
+
+    let minDistToChosen = Infinity;
+
+    for (const chosen of chosenEmbeddings) {
+      const d = cosineDistance(op.embedding, chosen);
+      if (d < minDistToChosen) {
+        minDistToChosen = d;
+      }
+    }
+
+    // We want the opinion whose closest chosen is as far as possible
+    if (minDistToChosen > bestScore) {
+      bestScore = minDistToChosen;
+      bestOpinion = op;
+    }
+  }
+
+  return bestOpinion;
+}

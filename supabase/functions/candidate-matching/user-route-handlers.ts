@@ -52,9 +52,6 @@ async function handleGetQuestion({
   userProfile,
   userId,
 }: UserRouteContext): Promise<Response> {
-  console.log(
-    `[GET question] topics: ${userProfile.selected_topics.length}`
-  );
 
   if (userProfile.selected_topics.length === 0) {
     console.log(`[GET question] ❌ No topics selected`);
