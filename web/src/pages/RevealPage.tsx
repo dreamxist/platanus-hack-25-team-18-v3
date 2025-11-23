@@ -231,70 +231,73 @@ const RevealPage = () => {
           transition={{ ...spring.smooth, duration: 1.2 }}
         />
 
-        {/* Overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/60 to-background/90" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/85 via-background/70 to-background/95" />
 
-        {/* Candidate image as watermark */}
-        <div
-          className="absolute inset-0 bg-center bg-no-repeat opacity-100"
-          style={{
-            backgroundImage: `url(${candidateImage})`,
-            backgroundSize: '100%'
-          }}
-        />
+        {/* Candidate image removed - now shown as circular avatar in content */}
 
-        {/* Bottom gradient for text readability */}
-        <div className="absolute bottom-0 left-0 right-0 h-[35%] bg-gradient-to-t from-background from-45% via-background to-transparent" />
+        {/* Gradiente inferior: más pequeño en desktop para no tapar la foto */}
+        <div className="absolute bottom-0 left-0 right-0 h-[50%] md:h-[40%] bg-gradient-to-t from-background from-60% via-background/95 to-background/80" />
+        
+        {/* Gradiente superior solo para móvil */}
+        <div className="absolute top-0 left-0 right-0 h-[40%] bg-gradient-to-b from-background/90 via-background/70 to-transparent md:hidden" />
       </div>
 
       {/* Scrollable Content */}
       <div className="relative z-10 flex flex-col w-full">
         {/* Hero Section (Full Height) */}
         <div className="h-[100dvh] w-full flex flex-col">
-          <div className="flex-1 flex flex-col items-center justify-end px-6 pb-24">
-            {/* Two column layout */}
-            <div className="w-full max-w-2xl grid grid-cols-2 gap-6 mb-6">
-              {/* Left column: Percentage and topics */}
-              <div className="flex flex-col items-start">
-                {/* Match percentage */}
-                <div className="mb-3 animate-scale-in">
-                  <h2 className="text-[80px] md:text-[90px] font-bold text-foreground leading-none">
-                    {overallScore}%
-                  </h2>
-                </div>
-
-                {/* Topic badges - Show only top 3 matches here */}
-                <div className="flex flex-row flex-wrap gap-1.5">
-                  {matchedTopics.slice(0, 3).map(([topic, score]) => {
-                    let bgColor = "bg-red-500";
-                    if (score >= 70) bgColor = "bg-emerald-500";
-                    else if (score >= 50) bgColor = "bg-amber-500";
-                    
-                    return (
-                      <span
-                        key={topic}
-                        className={`px-3 py-1 ${bgColor} text-white text-xs font-semibold rounded-full whitespace-nowrap`}
-                      >
-                        {topic}
-                      </span>
-                    );
-                  })}
+          <div className="flex-1 flex flex-col items-center justify-end px-6 pb-24 relative z-20">
+            {/* Centered vertical layout */}
+            <div className="w-full max-w-2xl flex flex-col items-center mb-6">
+              {/* Candidate circular avatar */}
+              <div className="mb-6 animate-scale-in">
+                <div className="relative">
+                  <img
+                    src={candidateImage}
+                    alt={topCandidate.name}
+                    className="w-44 h-44 md:w-96 md:h-96 rounded-full object-cover border-4 border-background shadow-2xl"
+                  />
                 </div>
               </div>
 
-              {/* Right column: Name and party */}
-              <div className="flex flex-col items-start justify-start text-foreground mt-5">
-                <h3 className="text-xl font-bold mb-1">
+              {/* Match percentage - centered and prominent */}
+              <div className="mb-4 animate-scale-in">
+                <h2 className="text-[72px] md:text-[120px] font-bold text-foreground leading-none drop-shadow-lg text-center">
+                  {overallScore}%
+                </h2>
+              </div>
+
+              {/* Name and party - centered below percentage */}
+              <div className="flex flex-col items-center mb-4 text-foreground">
+                <h3 className="text-2xl md:text-3xl font-bold mb-1 drop-shadow-md text-center">
                   {topCandidate.name}
                 </h3>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base md:text-lg text-muted-foreground drop-shadow-sm text-center">
                   {topCandidate.partyName}
                 </p>
+              </div>
+
+              {/* Topic badges - centered below name */}
+              <div className="flex flex-row flex-wrap justify-center gap-2">
+                {matchedTopics.slice(0, 3).map(([topic, score]) => {
+                  let bgColor = "bg-red-500";
+                  if (score >= 70) bgColor = "bg-emerald-500";
+                  else if (score >= 50) bgColor = "bg-amber-500";
+                  
+                  return (
+                    <span
+                      key={topic}
+                      className={`px-3 py-1.5 ${bgColor} text-white text-sm font-semibold rounded-full whitespace-nowrap drop-shadow-md`}
+                    >
+                      {topic}
+                    </span>
+                  );
+                })}
               </div>
             </div>
 
             {/* Share button */}
-            <div className="w-full max-w-2xl mb-8">
+            <div className="w-full max-w-2xl mb-8 relative z-20">
               <Button
                 onClick={handleShare}
                 className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg"
@@ -305,8 +308,8 @@ const RevealPage = () => {
             </div>
             
             {/* Scroll indicator */}
-            <div className="animate-bounce text-muted-foreground/70 pb-4">
-              <span className="text-sm font-medium">Desliza para ver detalles</span>
+            <div className="animate-bounce text-muted-foreground/70 pb-4 relative z-20">
+              <span className="text-sm font-medium drop-shadow-sm">Desliza para ver detalles</span>
             </div>
           </div>
         </div>
